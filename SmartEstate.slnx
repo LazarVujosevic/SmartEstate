@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SmartEstate.API/SmartEstate.API.csproj" />
+    <Project Path="src/SmartEstate.Application/SmartEstate.Application.csproj" />
+    <Project Path="src/SmartEstate.Domain/SmartEstate.Domain.csproj" />
+    <Project Path="src/SmartEstate.Infrastructure/SmartEstate.Infrastructure.csproj" />
+    <Project Path="src/SmartEstate.Web/SmartEstate.Web.csproj" />
+    <Project Path="src/SmartEstate.Workers/SmartEstate.Workers.csproj" />
+  </Folder>
+</Solution>

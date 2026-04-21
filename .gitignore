@@ -1,0 +1,76 @@
+## .NET solution user files
+*.slnx.user
+
+## .NET / C#
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.userprefs
+*.lock.json
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# ASP.NET Core
+appsettings.Development.json
+appsettings.Production.json
+appsettings.Local.json
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+!**/packages/repositories.config
+*.nuspec
+
+# Visual Studio
+.vs/
+*.VC.db
+*.VC.opendb
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# Blazor WASM publish output
+wwwroot/dist/
+publish/
+
+# EF Core migrations (keep migrations, ignore snapshots if needed)
+# Actually keep all migrations - they are part of source
+
+# Test results
+TestResults/
+*.trx
+coverage/
+*.coveragexml
+
+# Docker
+.dockerignore
+
+# Secrets
+*.pfx
+*.p12
+secrets.json
+local.settings.json
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+logs/
+*.log
