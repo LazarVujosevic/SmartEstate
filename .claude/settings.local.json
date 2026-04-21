@@ -8,7 +8,8 @@
       "Bash(dotnet build *)",
       "Bash(dotnet remove *)",
       "Bash(netstat -ano)",
-      "Bash(docker-compose up *)"
+      "Bash(docker-compose up *)",
+      "Bash(powershell.exe -Command \"Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine -Force\")"
     ]
   }
 }

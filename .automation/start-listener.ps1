@@ -2,13 +2,14 @@
 # Run this once at the start of each dev session
 # Keep the window open while working
 
-$scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
+$listenerPath = "D:\Projects\SmartEstate\.automation\listener.ps1"
 
 $wtAvailable = Get-Command wt -ErrorAction SilentlyContinue
 if ($wtAvailable) {
-    Start-Process wt -ArgumentList "new-tab", "--title", "SmartEstate Listener", "powershell.exe", "-NoExit", "-ExecutionPolicy", "Bypass", "-File", "$scriptPath\listener.ps1"
+    $wtArgs = "new-tab --title `"SmartEstate Listener`" -- powershell.exe -NoExit -ExecutionPolicy Bypass -File `"$listenerPath`""
+    Start-Process wt -ArgumentList $wtArgs
 } else {
-    Start-Process powershell -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-File", "$scriptPath\listener.ps1"
+    Start-Process powershell -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-File", "`"$listenerPath`""
 }
 
 Write-Host "Listener started in a new window." -ForegroundColor Green
