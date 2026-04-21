@@ -1,146 +1,86 @@
 {
-  "name": "SmartEstate - PR Review Trigger (Lead Dev)",
+  "name": "SmartEstate - PR Review Trigger",
   "nodes": [
     {
       "parameters": {
         "rule": {
-          "interval": [
-            {
-              "field": "minutes",
-              "minutesInterval": 1
-            }
-          ]
+          "interval": [{ "field": "minutes", "minutesInterval": 1 }]
         }
       },
-      "id": "schedule-trigger",
+      "id": "node-schedule",
       "name": "Poll Every Minute",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.1,
-      "position": [240, 300]
+      "position": [180, 300]
     },
     {
       "parameters": {
-        "authentication": "oAuth2",
-        "resource": "pullRequest",
-        "operation": "getAll",
-        "owner": "LazarVujosevic",
-        "repository": "SmartEstate",
-        "filters": {
-          "state": "open"
+        "method": "GET",
+        "url": "https://api.github.com/repos/LazarVujosevic/SmartEstate/pulls",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "state", "value": "open" },
+            { "name": "per_page", "value": "20" }
+          ]
         },
-        "returnAll": true
+        "options": {}
       },
-      "id": "get-open-prs",
+      "id": "node-get-prs",
       "name": "Get Open PRs",
-      "type": "n8n-nodes-base.github",
-      "typeVersion": 1,
-      "position": [460, 300],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [380, 300],
       "credentials": {
-        "githubOAuth2Api": {
-          "name": "SmartEstate GitHub"
-        }
+        "githubApi": { "name": "SmartEstate GitHub" }
       }
     },
     {
       "parameters": {
-        "conditions": {
-          "options": {},
-          "conditions": [
-            {
-              "id": "no-review",
-              "leftValue": "={{ $json.requested_reviewers.length }}",
-              "rightValue": 0,
-              "operator": {
-                "type": "number",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        }
+        "jsCode": "const prs = $input.first().json;\nif (!Array.isArray(prs) || prs.length === 0) return [];\nreturn prs\n  .filter(pr => !pr.draft && pr.requested_reviewers && pr.requested_reviewers.length === 0)\n  .map(pr => ({ json: pr }));"
       },
-      "id": "filter-no-reviewer",
-      "name": "Filter: No Reviewer Yet",
-      "type": "n8n-nodes-base.filter",
+      "id": "node-split-filter",
+      "name": "Split and Filter No Reviewer",
+      "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [680, 300]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {},
-          "conditions": [
-            {
-              "id": "not-draft",
-              "leftValue": "={{ $json.draft }}",
-              "rightValue": false,
-              "operator": {
-                "type": "boolean",
-                "operation": "false"
-              }
-            }
-          ],
-          "combinator": "and"
-        }
-      },
-      "id": "filter-not-draft",
-      "name": "Filter: Not Draft",
-      "type": "n8n-nodes-base.filter",
-      "typeVersion": 2,
-      "position": [900, 300]
+      "position": [580, 300]
     },
     {
       "parameters": {
         "assignments": {
           "assignments": [
-            {
-              "id": "role",
-              "name": "role",
-              "value": "leaddev",
-              "type": "string"
-            },
-            {
-              "id": "prompt",
-              "name": "prompt",
-              "value": "=New Pull Request ready for review!\n\nPR #{{ $json.number }}: {{ $json.title }}\nBranch: {{ $json.head.ref }} → {{ $json.base.ref }}\nAuthor: {{ $json.user.login }}\n\nDescription:\n{{ $json.body }}\n\nPR URL: {{ $json.html_url }}\n\nYou are the Lead Developer. Read CLAUDE.md and .claude/lead-dev.md in full. Review this PR using the PR Review Checklist in your .md file. Approve and merge if it passes, or request changes with specific comments if it does not.",
-              "type": "string"
-            },
-            {
-              "id": "prNumber",
-              "name": "prNumber",
-              "value": "={{ $json.number }}",
-              "type": "number"
-            }
+            { "id": "a1", "name": "role", "value": "leaddev", "type": "string" },
+            { "id": "a2", "name": "prNumber", "value": "={{ $json.number }}", "type": "number" },
+            { "id": "a3", "name": "prompt", "value": "=New Pull Request ready for review!\n\nPR #{{ $json.number }}: {{ $json.title }}\nBranch: {{ $json.head.ref }} into {{ $json.base.ref }}\nAuthor: {{ $json.user.login }}\n\nDescription:\n{{ $json.body }}\n\nPR URL: {{ $json.html_url }}\n\nYou are the Lead Developer. Read CLAUDE.md and .claude/lead-dev.md in full. Review this PR using the checklist in your .md file. Approve and merge if it passes, or request changes if it does not.", "type": "string" }
           ]
         }
       },
-      "id": "build-prompt",
-      "name": "Build Lead Dev Prompt",
+      "id": "node-build-prompt",
+      "name": "Build Prompt",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.3,
-      "position": [1120, 300]
+      "position": [780, 300]
     },
     {
       "parameters": {
-        "authentication": "oAuth2",
-        "resource": "pullRequest",
-        "operation": "update",
-        "owner": "LazarVujosevic",
-        "repository": "SmartEstate",
-        "pullRequestNumber": "={{ $json.prNumber }}",
-        "body": {
-          "requested_reviewers": ["LazarVujosevic"]
-        }
+        "method": "POST",
+        "url": "=https://api.github.com/repos/LazarVujosevic/SmartEstate/pulls/{{ $json.prNumber }}/requested_reviewers",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"reviewers\": [\"LazarVujosevic\"] }",
+        "options": {}
       },
-      "id": "request-review",
-      "name": "Mark PR as Under Review",
-      "type": "n8n-nodes-base.github",
-      "typeVersion": 1,
-      "position": [1340, 300],
+      "id": "node-request-review",
+      "name": "Mark PR Under Review",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [980, 300],
       "credentials": {
-        "githubOAuth2Api": {
-          "name": "SmartEstate GitHub"
-        }
+        "githubApi": { "name": "SmartEstate GitHub" }
       }
     },
     {
@@ -148,50 +88,33 @@
         "method": "POST",
         "url": "http://host.docker.internal:9876/",
         "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "role",
-              "value": "={{ $json.role }}"
-            },
-            {
-              "name": "prompt",
-              "value": "={{ $json.prompt }}"
-            }
-          ]
-        },
-        "options": {
-          "timeout": 5000
-        }
+        "specifyBody": "json",
+        "jsonBody": "={ \"role\": \"{{ $('Build Prompt').item.json.role }}\", \"prompt\": \"{{ $('Build Prompt').item.json.prompt.replace(/\"/g, '\\\\\"') }}\" }",
+        "options": { "timeout": 5000 }
       },
-      "id": "trigger-claude",
+      "id": "node-trigger-claude",
       "name": "Trigger Lead Dev Session",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1560, 300]
+      "position": [1180, 300]
     }
   ],
   "connections": {
     "Poll Every Minute": {
-      "main": [[{"node": "Get Open PRs", "type": "main", "index": 0}]]
+      "main": [[{ "node": "Get Open PRs", "type": "main", "index": 0 }]]
     },
     "Get Open PRs": {
-      "main": [[{"node": "Filter: No Reviewer Yet", "type": "main", "index": 0}]]
+      "main": [[{ "node": "Split and Filter No Reviewer", "type": "main", "index": 0 }]]
     },
-    "Filter: No Reviewer Yet": {
-      "main": [[{"node": "Filter: Not Draft", "type": "main", "index": 0}]]
+    "Split and Filter No Reviewer": {
+      "main": [[{ "node": "Build Prompt", "type": "main", "index": 0 }]]
     },
-    "Filter: Not Draft": {
-      "main": [[{"node": "Build Lead Dev Prompt", "type": "main", "index": 0}]]
+    "Build Prompt": {
+      "main": [[{ "node": "Mark PR Under Review", "type": "main", "index": 0 }]]
     },
-    "Build Lead Dev Prompt": {
-      "main": [[{"node": "Mark PR as Under Review", "type": "main", "index": 0}]]
-    },
-    "Mark PR as Under Review": {
-      "main": [[{"node": "Trigger Lead Dev Session", "type": "main", "index": 0}]]
+    "Mark PR Under Review": {
+      "main": [[{ "node": "Trigger Lead Dev Session", "type": "main", "index": 0 }]]
     }
   },
-  "settings": {
-    "executionOrder": "v1"
-  }
+  "settings": { "executionOrder": "v1" }
 }

@@ -4,146 +4,84 @@
     {
       "parameters": {
         "rule": {
-          "interval": [
-            {
-              "field": "minutes",
-              "minutesInterval": 1
-            }
-          ]
+          "interval": [{ "field": "minutes", "minutesInterval": 1 }]
         }
       },
-      "id": "schedule-trigger",
+      "id": "node-schedule",
       "name": "Poll Every Minute",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.1,
-      "position": [240, 300]
+      "position": [180, 300]
     },
     {
       "parameters": {
-        "authentication": "oAuth2",
-        "resource": "issue",
-        "operation": "getAll",
-        "owner": "LazarVujosevic",
-        "repository": "SmartEstate",
-        "filters": {
-          "state": "open",
-          "labels": "frontend"
+        "method": "GET",
+        "url": "https://api.github.com/repos/LazarVujosevic/SmartEstate/issues",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "labels", "value": "frontend" },
+            { "name": "state", "value": "open" },
+            { "name": "per_page", "value": "20" }
+          ]
         },
-        "returnAll": true
+        "options": {}
       },
-      "id": "get-frontend-issues",
-      "name": "Get Open Frontend Issues",
-      "type": "n8n-nodes-base.github",
-      "typeVersion": 1,
-      "position": [460, 300],
+      "id": "node-get-issues",
+      "name": "Get Frontend Issues",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [380, 300],
       "credentials": {
-        "githubOAuth2Api": {
-          "name": "SmartEstate GitHub"
-        }
+        "githubApi": { "name": "SmartEstate GitHub" }
       }
     },
     {
       "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true
-          },
-          "conditions": [
-            {
-              "id": "no-pr",
-              "leftValue": "={{ $json.pull_request }}",
-              "rightValue": "",
-              "operator": {
-                "type": "object",
-                "operation": "notExists"
-              }
-            }
-          ],
-          "combinator": "and"
-        }
+        "jsCode": "const issues = $input.first().json;\nif (!Array.isArray(issues) || issues.length === 0) return [];\nreturn issues.filter(i => i.assignees && i.assignees.length === 0).map(i => ({ json: i }));"
       },
-      "id": "filter-no-pr",
-      "name": "Filter: No PR Yet",
-      "type": "n8n-nodes-base.filter",
+      "id": "node-split-filter",
+      "name": "Split and Filter Unassigned",
+      "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [680, 300]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {},
-          "conditions": [
-            {
-              "id": "check-assignee",
-              "leftValue": "={{ $json.assignees.length }}",
-              "rightValue": 0,
-              "operator": {
-                "type": "number",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        }
-      },
-      "id": "filter-unassigned",
-      "name": "Filter: Unassigned",
-      "type": "n8n-nodes-base.filter",
-      "typeVersion": 2,
-      "position": [900, 300]
+      "position": [580, 300]
     },
     {
       "parameters": {
         "assignments": {
           "assignments": [
-            {
-              "id": "role",
-              "name": "role",
-              "value": "frontend",
-              "type": "string"
-            },
-            {
-              "id": "prompt",
-              "name": "prompt",
-              "value": "=GitHub Issue #{{ $json.number }}: {{ $json.title }}\n\nDescription:\n{{ $json.body }}\n\nIssue URL: {{ $json.html_url }}\n\nYou are the Frontend Developer. Read CLAUDE.md and .claude/frontend-dev.md in full. Then implement this issue following all conventions. Create a Pull Request when done. Reference 'Closes #{{ $json.number }}' in the PR description.",
-              "type": "string"
-            },
-            {
-              "id": "issueNumber",
-              "name": "issueNumber",
-              "value": "={{ $json.number }}",
-              "type": "number"
-            }
+            { "id": "a1", "name": "role", "value": "frontend", "type": "string" },
+            { "id": "a2", "name": "issueNumber", "value": "={{ $json.number }}", "type": "number" },
+            { "id": "a3", "name": "prompt", "value": "=GitHub Issue #{{ $json.number }}: {{ $json.title }}\n\nDescription:\n{{ $json.body }}\n\nIssue URL: {{ $json.html_url }}\n\nYou are the Frontend Developer. Read CLAUDE.md and .claude/frontend-dev.md in full. Implement this issue. Create a Pull Request when done referencing Closes #{{ $json.number }}.", "type": "string" }
           ]
         }
       },
-      "id": "build-prompt",
-      "name": "Build Claude Prompt",
+      "id": "node-build-prompt",
+      "name": "Build Prompt",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.3,
-      "position": [1120, 300]
+      "position": [780, 300]
     },
     {
       "parameters": {
-        "authentication": "oAuth2",
-        "resource": "issue",
-        "operation": "edit",
-        "owner": "LazarVujosevic",
-        "repository": "SmartEstate",
-        "issueNumber": "={{ $json.issueNumber }}",
-        "editFields": {
-          "assignees": ["LazarVujosevic"]
-        }
+        "method": "PATCH",
+        "url": "=https://api.github.com/repos/LazarVujosevic/SmartEstate/issues/{{ $json.issueNumber }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"assignees\": [\"LazarVujosevic\"] }",
+        "options": {}
       },
-      "id": "assign-issue",
-      "name": "Mark Issue as In-Progress (Assign)",
-      "type": "n8n-nodes-base.github",
-      "typeVersion": 1,
-      "position": [1340, 300],
+      "id": "node-assign",
+      "name": "Assign Issue",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [980, 300],
       "credentials": {
-        "githubOAuth2Api": {
-          "name": "SmartEstate GitHub"
-        }
+        "githubApi": { "name": "SmartEstate GitHub" }
       }
     },
     {
@@ -151,50 +89,33 @@
         "method": "POST",
         "url": "http://host.docker.internal:9876/",
         "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "role",
-              "value": "={{ $json.role }}"
-            },
-            {
-              "name": "prompt",
-              "value": "={{ $json.prompt }}"
-            }
-          ]
-        },
-        "options": {
-          "timeout": 5000
-        }
+        "specifyBody": "json",
+        "jsonBody": "={ \"role\": \"{{ $('Build Prompt').item.json.role }}\", \"prompt\": \"{{ $('Build Prompt').item.json.prompt.replace(/\"/g, '\\\\\"') }}\" }",
+        "options": { "timeout": 5000 }
       },
-      "id": "trigger-claude",
+      "id": "node-trigger-claude",
       "name": "Trigger Claude Session",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1560, 300]
+      "position": [1180, 300]
     }
   ],
   "connections": {
     "Poll Every Minute": {
-      "main": [[{"node": "Get Open Frontend Issues", "type": "main", "index": 0}]]
+      "main": [[{ "node": "Get Frontend Issues", "type": "main", "index": 0 }]]
     },
-    "Get Open Frontend Issues": {
-      "main": [[{"node": "Filter: No PR Yet", "type": "main", "index": 0}]]
+    "Get Frontend Issues": {
+      "main": [[{ "node": "Split and Filter Unassigned", "type": "main", "index": 0 }]]
     },
-    "Filter: No PR Yet": {
-      "main": [[{"node": "Filter: Unassigned", "type": "main", "index": 0}]]
+    "Split and Filter Unassigned": {
+      "main": [[{ "node": "Build Prompt", "type": "main", "index": 0 }]]
     },
-    "Filter: Unassigned": {
-      "main": [[{"node": "Build Claude Prompt", "type": "main", "index": 0}]]
+    "Build Prompt": {
+      "main": [[{ "node": "Assign Issue", "type": "main", "index": 0 }]]
     },
-    "Build Claude Prompt": {
-      "main": [[{"node": "Mark Issue as In-Progress (Assign)", "type": "main", "index": 0}]]
-    },
-    "Mark Issue as In-Progress (Assign)": {
-      "main": [[{"node": "Trigger Claude Session", "type": "main", "index": 0}]]
+    "Assign Issue": {
+      "main": [[{ "node": "Trigger Claude Session", "type": "main", "index": 0 }]]
     }
   },
-  "settings": {
-    "executionOrder": "v1"
-  }
+  "settings": { "executionOrder": "v1" }
 }
