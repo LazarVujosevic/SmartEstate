@@ -4,7 +4,7 @@
     {
       "parameters": {
         "rule": {
-          "interval": [{ "field": "minutes", "minutesInterval": 1 }]
+          "interval": [{ "field": "seconds", "secondsInterval": 30 }]
         }
       },
       "id": "node-schedule",
