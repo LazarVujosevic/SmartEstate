@@ -23,8 +23,8 @@
         "authentication": "oAuth2",
         "resource": "issue",
         "operation": "getAll",
-        "owner": "={{ $vars.GITHUB_OWNER }}",
-        "repository": "={{ $vars.GITHUB_REPO }}",
+        "owner": "LazarVujosevic",
+        "repository": "SmartEstate",
         "filters": {
           "state": "open",
           "labels": "frontend"
@@ -128,11 +128,11 @@
         "authentication": "oAuth2",
         "resource": "issue",
         "operation": "edit",
-        "owner": "={{ $vars.GITHUB_OWNER }}",
-        "repository": "={{ $vars.GITHUB_REPO }}",
+        "owner": "LazarVujosevic",
+        "repository": "SmartEstate",
         "issueNumber": "={{ $json.issueNumber }}",
         "editFields": {
-          "assignees": ["={{ $vars.GITHUB_OWNER }}"]
+          "assignees": ["LazarVujosevic"]
         }
       },
       "id": "assign-issue",

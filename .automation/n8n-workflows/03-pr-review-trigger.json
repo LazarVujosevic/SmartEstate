@@ -23,8 +23,8 @@
         "authentication": "oAuth2",
         "resource": "pullRequest",
         "operation": "getAll",
-        "owner": "={{ $vars.GITHUB_OWNER }}",
-        "repository": "={{ $vars.GITHUB_REPO }}",
+        "owner": "LazarVujosevic",
+        "repository": "SmartEstate",
         "filters": {
           "state": "open"
         },
@@ -125,11 +125,11 @@
         "authentication": "oAuth2",
         "resource": "pullRequest",
         "operation": "update",
-        "owner": "={{ $vars.GITHUB_OWNER }}",
-        "repository": "={{ $vars.GITHUB_REPO }}",
+        "owner": "LazarVujosevic",
+        "repository": "SmartEstate",
         "pullRequestNumber": "={{ $json.prNumber }}",
         "body": {
-          "requested_reviewers": ["={{ $vars.GITHUB_OWNER }}"]
+          "requested_reviewers": ["LazarVujosevic"]
         }
       },
       "id": "request-review",
