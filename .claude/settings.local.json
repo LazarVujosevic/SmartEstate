@@ -6,7 +6,9 @@
       "Bash(dotnet add *)",
       "Bash(dotnet restore *)",
       "Bash(dotnet build *)",
-      "Bash(dotnet remove *)"
+      "Bash(dotnet remove *)",
+      "Bash(netstat -ano)",
+      "Bash(docker-compose up *)"
     ]
   }
 }

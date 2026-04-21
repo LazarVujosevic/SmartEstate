@@ -1,0 +1,200 @@
+{
+  "name": "SmartEstate - Frontend Issue Trigger",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Poll Every Minute",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "issue",
+        "operation": "getAll",
+        "owner": "={{ $vars.GITHUB_OWNER }}",
+        "repository": "={{ $vars.GITHUB_REPO }}",
+        "filters": {
+          "state": "open",
+          "labels": "frontend"
+        },
+        "returnAll": true
+      },
+      "id": "get-frontend-issues",
+      "name": "Get Open Frontend Issues",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1,
+      "position": [460, 300],
+      "credentials": {
+        "githubOAuth2Api": {
+          "name": "SmartEstate GitHub"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "conditions": [
+            {
+              "id": "no-pr",
+              "leftValue": "={{ $json.pull_request }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "notExists"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "filter-no-pr",
+      "name": "Filter: No PR Yet",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {},
+          "conditions": [
+            {
+              "id": "check-assignee",
+              "leftValue": "={{ $json.assignees.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "filter-unassigned",
+      "name": "Filter: Unassigned",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "role",
+              "name": "role",
+              "value": "frontend",
+              "type": "string"
+            },
+            {
+              "id": "prompt",
+              "name": "prompt",
+              "value": "=GitHub Issue #{{ $json.number }}: {{ $json.title }}\n\nDescription:\n{{ $json.body }}\n\nIssue URL: {{ $json.html_url }}\n\nYou are the Frontend Developer. Read CLAUDE.md and .claude/frontend-dev.md in full. Then implement this issue following all conventions. Create a Pull Request when done. Reference 'Closes #{{ $json.number }}' in the PR description.",
+              "type": "string"
+            },
+            {
+              "id": "issueNumber",
+              "name": "issueNumber",
+              "value": "={{ $json.number }}",
+              "type": "number"
+            }
+          ]
+        }
+      },
+      "id": "build-prompt",
+      "name": "Build Claude Prompt",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "issue",
+        "operation": "edit",
+        "owner": "={{ $vars.GITHUB_OWNER }}",
+        "repository": "={{ $vars.GITHUB_REPO }}",
+        "issueNumber": "={{ $json.issueNumber }}",
+        "editFields": {
+          "assignees": ["={{ $vars.GITHUB_OWNER }}"]
+        }
+      },
+      "id": "assign-issue",
+      "name": "Mark Issue as In-Progress (Assign)",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1,
+      "position": [1340, 300],
+      "credentials": {
+        "githubOAuth2Api": {
+          "name": "SmartEstate GitHub"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:9876/",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "role",
+              "value": "={{ $json.role }}"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.prompt }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "trigger-claude",
+      "name": "Trigger Claude Session",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1560, 300]
+    }
+  ],
+  "connections": {
+    "Poll Every Minute": {
+      "main": [[{"node": "Get Open Frontend Issues", "type": "main", "index": 0}]]
+    },
+    "Get Open Frontend Issues": {
+      "main": [[{"node": "Filter: No PR Yet", "type": "main", "index": 0}]]
+    },
+    "Filter: No PR Yet": {
+      "main": [[{"node": "Filter: Unassigned", "type": "main", "index": 0}]]
+    },
+    "Filter: Unassigned": {
+      "main": [[{"node": "Build Claude Prompt", "type": "main", "index": 0}]]
+    },
+    "Build Claude Prompt": {
+      "main": [[{"node": "Mark Issue as In-Progress (Assign)", "type": "main", "index": 0}]]
+    },
+    "Mark Issue as In-Progress (Assign)": {
+      "main": [[{"node": "Trigger Claude Session", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

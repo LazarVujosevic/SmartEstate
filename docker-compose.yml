@@ -24,10 +24,11 @@ services:
     container_name: smartestate-pgadmin
     restart: unless-stopped
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@smartestate.local
+      PGADMIN_DEFAULT_EMAIL: admin@smartestate.com
       PGADMIN_DEFAULT_PASSWORD: admin
       PGADMIN_CONFIG_SERVER_MODE: 'False'
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+      PGADMIN_CONFIG_CHECK_EMAIL_DELIVERABILITY: 'False'
     ports:
       - "5050:80"
     volumes:

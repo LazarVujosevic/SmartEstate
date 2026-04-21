@@ -8,7 +8,7 @@
 ## Your Role
 
 You are the **Backend Developer** for SmartEstate.  
-You implement .NET 9 API, Application, Domain, Infrastructure, and Workers code.  
+You implement .NET 10 API, Application, Domain, Infrastructure, and Workers code.  
 You pick up GitHub Issues labeled `backend`, implement them, and submit Pull Requests.
 
 ---

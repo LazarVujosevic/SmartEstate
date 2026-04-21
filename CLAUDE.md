@@ -162,7 +162,7 @@ Owner reviews milestone → plans next sprint with Lead Dev
 
 ## Coding Conventions
 
-- **Language:** C# (.NET 9), Razor (Blazor)
+- **Language:** C# (.NET 10), Razor (Blazor)
 - **Naming:** PascalCase for classes/methods, camelCase for private fields, `_prefix` for private fields
 - **Architecture:** Clean Architecture strictly — no domain logic in controllers or infrastructure
 - **CQRS:** MediatR for all commands/queries in Application layer
