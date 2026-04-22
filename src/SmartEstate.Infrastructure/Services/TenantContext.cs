@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Http;
+using SmartEstate.Application.Common.Constants;
 using SmartEstate.Application.Common.Interfaces;
+using SmartEstate.Infrastructure.Identity;
 
 namespace SmartEstate.Infrastructure.Services;
 
@@ -9,11 +11,11 @@ public class TenantContext(IHttpContextAccessor httpContextAccessor) : ITenantCo
     {
         get
         {
-            var claim = httpContextAccessor.HttpContext?.User.FindFirst("tenant_id");
+            var claim = httpContextAccessor.HttpContext?.User.FindFirst(AppClaims.TenantId);
             return claim is not null && Guid.TryParse(claim.Value, out var id) ? id : null;
         }
     }
 
     public bool IsAdministrator =>
-        httpContextAccessor.HttpContext?.User.IsInRole("Administrator") ?? false;
+        httpContextAccessor.HttpContext?.User.IsInRole(AppRoles.Administrator) ?? false;
 }
