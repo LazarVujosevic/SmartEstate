@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using SmartEstate.API.Models.Requests;
 using SmartEstate.Application.Common.Models;
 using SmartEstate.Application.Features.Admin.Tenants.Commands.CreateTenant;
+using SmartEstate.Application.Features.Admin.Tenants.Commands.SetTenantActive;
 using SmartEstate.Application.Features.Admin.Tenants.DTOs;
 using SmartEstate.Application.Features.Admin.Users.Commands.CreateTenantUser;
 using SmartEstate.Application.Features.Admin.Users.DTOs;
@@ -36,6 +37,18 @@ public class AdminTenantsController(ISender mediator) : ControllerBase
         var result = await mediator.Send(command, ct);
         return result.Match(
             dto => CreatedAtAction(nameof(CreateUser), new { tenantId, id = dto.Id }, ApiResponse<UserDto>.Ok(dto)),
+            errors => MapErrors(errors));
+    }
+
+    [HttpPatch("{tenantId:guid}/activate")]
+    public async Task<IActionResult> SetActive(
+        Guid tenantId,
+        [FromBody] SetTenantActiveRequest body,
+        CancellationToken ct)
+    {
+        var result = await mediator.Send(new SetTenantActiveCommand(tenantId, body.IsActive), ct);
+        return result.Match(
+            dto => Ok(ApiResponse<TenantDto>.Ok(dto)),
             errors => MapErrors(errors));
     }
 
