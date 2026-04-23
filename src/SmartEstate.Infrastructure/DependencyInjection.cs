@@ -15,6 +15,7 @@ public static class DependencyInjection
     {
         services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IUserManagementService, UserManagementService>();
 
         // TenantContext registered both as concrete (for TenantMiddleware setter) and as interface (for all consumers)
         services.AddScoped<TenantContext>();
