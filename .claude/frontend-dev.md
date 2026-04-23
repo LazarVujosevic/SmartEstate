@@ -285,3 +285,4 @@ PR description must include:
 - `DeleteConfirmDialog` reusable component lives in `Components/DeleteConfirmDialog.razor` — accepts `ContentText` parameter, uses `IMudDialogInstance` cascade.
 - `PagedResult<T>` client model is in `Web/Models/Common/PagedResult.cs` (mirrors backend `PagedResult<T>`).
 - Buyer pages: `/buyers` (list), `/buyers/create`, `/buyers/{id}` (detail), `/buyers/{id}/edit`.
+- Components using `System.Timers.Timer` must declare `@implements IDisposable` — Blazor only calls `Dispose()` on components that explicitly declare the interface; without it the timer leaks on unmount.
