@@ -257,9 +257,14 @@ PR description must include:
 
 ## Implementation Notes & Discoveries
 
-*(Update this section as you implement features)*
-
-- API base URL for local dev: `https://localhost:7001`  
+- API base URL for local dev: `https://localhost:7001`
 - MudBlazor requires `<MudThemeProvider>`, `<MudDialogProvider>`, `<MudSnackbarProvider>` in `MainLayout.razor` or `App.razor`
 - Blazor WASM auth: JWT claims are parsed from the token payload by `JwtAuthStateProvider` — no separate user-info endpoint needed
 - For file uploads (property images): use `IBrowserFile` with `MudFileUpload` — send as `multipart/form-data` to API
+- `JwtAuthStateProvider` double-registration pattern (required so Login page can inject the concrete type for `Login()`/`Logout()` while the framework resolves `AuthenticationStateProvider`):
+  ```csharp
+  builder.Services.AddScoped<JwtAuthStateProvider>();
+  builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<JwtAuthStateProvider>());
+  ```
+- JWT localStorage key: `"smartestate_jwt"` — must match across `JwtAuthStateProvider`, Login page, and `ApiClient`
+- Theme localStorage key: `"smartestate_dark_mode"` — `_isDarkMode` field initializer must be `false` (matches `stored ?? false` in `OnAfterRenderAsync`)
