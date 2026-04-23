@@ -91,6 +91,11 @@ Body:
 
 When reviewing any PR, verify:
 
+**Completeness (check before anything else):**
+- [ ] For every HTTP endpoint listed in the issue, a corresponding Application layer Command/Query **and** Handler file exists as a committed file — not just a controller action
+- [ ] Every controller action contains `await mediator.Send(...)` — any method that returns a hardcoded result (`NotFound()`, `Ok()`, etc.) without dispatching to MediatR is a stub and must be rejected
+- [ ] Read the **full controller file** (`git show HEAD:<path>`), not just the diff — stacked PRs hide missing implementations in unchanged context
+
 **Architecture & Clean Architecture:**
 - [ ] No business logic in controllers (only dispatch to MediatR)
 - [ ] No infrastructure concerns in Domain or Application
