@@ -24,7 +24,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
 
         // tenantContext is a primary-constructor-captured field, re-evaluated per query.
         // When TenantId is null (Administrator or no HTTP context) the filter is bypassed.
-        ApplyTenantFilter<Buyer>(builder);
+        builder.Entity<Buyer>().HasQueryFilter(e =>
+            (!tenantContext.TenantId.HasValue || e.TenantId == tenantContext.TenantId.Value)
+            && !e.IsDeleted);
         ApplyTenantFilter<Property>(builder);
         ApplyTenantFilter<MatchReport>(builder);
         ApplyTenantFilter<InAppNotification>(builder);
