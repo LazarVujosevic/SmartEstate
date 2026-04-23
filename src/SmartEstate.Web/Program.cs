@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using MudBlazor.Services;
 using SmartEstate.Web;
 using SmartEstate.Web.Auth;
+using SmartEstate.Web.Services;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
@@ -22,5 +23,8 @@ builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<JwtAuthStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider>(
     sp => sp.GetRequiredService<JwtAuthStateProvider>());
+
+builder.Services.AddScoped<ApiClient>();
+builder.Services.AddScoped<AuthService>();
 
 await builder.Build().RunAsync();
