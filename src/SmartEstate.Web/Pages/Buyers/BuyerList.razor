@@ -1,0 +1,212 @@
+@page "/buyers"
+@attribute [Authorize(Roles = "Agent,AgencyManager")]
+@implements IDisposable
+@inject BuyerService BuyerService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>Buyers — SmartEstate</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudText Typo="Typo.h5">Buyers</MudText>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.PersonAdd"
+                   Href="/buyers/create">
+            Add Buyer
+        </MudButton>
+    </MudStack>
+
+    <MudTextField T="string"
+                  Value="_search"
+                  ValueChanged="OnSearchChanged"
+                  Placeholder="Search by name, email, phone or location..."
+                  Adornment="Adornment.Start"
+                  AdornmentIcon="@Icons.Material.Filled.Search"
+                  Clearable="true"
+                  Immediate="true"
+                  Class="mb-4" />
+
+    @if (_error is not null)
+    {
+        <MudAlert Severity="Severity.Error" Class="mb-4">@_error</MudAlert>
+    }
+
+    <MudDataGrid T="BuyerListItemDto"
+                 @ref="_grid"
+                 ServerData="LoadServerData"
+                 SortMode="SortMode.None"
+                 Hover="true"
+                 Striped="true"
+                 Elevation="2"
+                 Loading="_isLoading"
+                 RowsPerPage="20">
+        <Columns>
+            <PropertyColumn Property="b => b.FullName" Title="Full Name" />
+            <TemplateColumn Title="Email">
+                <CellTemplate>
+                    @(context.Item.Email ?? "—")
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Phone">
+                <CellTemplate>
+                    @(context.Item.Phone ?? "—")
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Budget (EUR)">
+                <CellTemplate>
+                    @FormatBudget(context.Item.BudgetMinEur, context.Item.BudgetMaxEur)
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Preferred Locations">
+                <CellTemplate>
+                    @if (context.Item.PreferredLocations.Count > 0)
+                    {
+                        <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
+                            @foreach (var loc in context.Item.PreferredLocations.Take(3))
+                            {
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default">@loc</MudChip>
+                            }
+                            @if (context.Item.PreferredLocations.Count > 3)
+                            {
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default">+@(context.Item.PreferredLocations.Count - 3)</MudChip>
+                            }
+                        </MudStack>
+                    }
+                    else
+                    {
+                        <span>—</span>
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Created">
+                <CellTemplate>
+                    @context.Item.CreatedAt.ToString("yyyy-MM-dd")
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Actions" Sortable="false">
+                <CellTemplate>
+                    <MudTooltip Text="View">
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility"
+                                       Size="Size.Small"
+                                       Color="Color.Default"
+                                       OnClick="@(() => ViewBuyer(context.Item.Id))" />
+                    </MudTooltip>
+                    <MudTooltip Text="Edit">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                       Size="Size.Small"
+                                       Color="Color.Primary"
+                                       OnClick="@(() => EditBuyer(context.Item.Id))" />
+                    </MudTooltip>
+                    <MudTooltip Text="Delete">
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                       Size="Size.Small"
+                                       Color="Color.Error"
+                                       OnClick="() => ConfirmDelete(context.Item)" />
+                    </MudTooltip>
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <PagerContent>
+            <MudDataGridPager T="BuyerListItemDto" />
+        </PagerContent>
+        <NoRecordsContent>
+            <MudText Class="pa-4" Color="Color.Secondary">No buyers found.</MudText>
+        </NoRecordsContent>
+    </MudDataGrid>
+</MudContainer>
+
+@code {
+    private MudDataGrid<BuyerListItemDto> _grid = null!;
+    private bool _isLoading;
+    private string? _error;
+    private string _search = string.Empty;
+    private System.Timers.Timer? _debounceTimer;
+
+    private void OnSearchChanged(string value)
+    {
+        _search = value;
+        _debounceTimer?.Stop();
+        _debounceTimer = new System.Timers.Timer(350);
+        _debounceTimer.Elapsed += async (_, _) =>
+        {
+            _debounceTimer?.Stop();
+            await InvokeAsync(() => _grid.ReloadServerData());
+        };
+        _debounceTimer.AutoReset = false;
+        _debounceTimer.Start();
+    }
+
+    private async Task<GridData<BuyerListItemDto>> LoadServerData(GridState<BuyerListItemDto> state, CancellationToken _)
+    {
+        _isLoading = true;
+        _error = null;
+
+        var pageNumber = state.Page + 1;
+        var pageSize = state.PageSize;
+
+        var result = await BuyerService.GetListAsync(pageNumber, pageSize, _search);
+
+        _isLoading = false;
+
+        if (result is null)
+        {
+            _error = "Failed to load buyers. Please try again.";
+            return new GridData<BuyerListItemDto> { Items = [], TotalItems = 0 };
+        }
+
+        return new GridData<BuyerListItemDto>
+        {
+            Items = result.Items,
+            TotalItems = result.TotalCount
+        };
+    }
+
+    private async Task ConfirmDelete(BuyerListItemDto buyer)
+    {
+        var parameters = new DialogParameters<DeleteConfirmDialog>
+        {
+            { x => x.ContentText, $"Are you sure you want to delete buyer \"{buyer.FullName}\"? This action cannot be undone." }
+        };
+
+        var dialog = await DialogService.ShowAsync<DeleteConfirmDialog>("Delete Buyer", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+            await DeleteBuyer(buyer.Id);
+    }
+
+    private async Task DeleteBuyer(Guid id)
+    {
+        var (success, error) = await BuyerService.DeleteAsync(id);
+        if (success)
+        {
+            Snackbar.Add("Buyer deleted.", Severity.Success);
+            await _grid.ReloadServerData();
+        }
+        else
+        {
+            Snackbar.Add(error ?? "Failed to delete buyer.", Severity.Error);
+        }
+    }
+
+    private void ViewBuyer(Guid id) => Nav.NavigateTo($"/buyers/{id}");
+    private void EditBuyer(Guid id) => Nav.NavigateTo($"/buyers/{id}/edit");
+
+    private static string FormatBudget(decimal? min, decimal? max)
+    {
+        if (min is null && max is null) return "—";
+        if (min is not null && max is not null) return $"€{min:N0} – €{max:N0}";
+        if (min is not null) return $"€{min:N0}+";
+        return $"up to €{max:N0}";
+    }
+
+    public void Dispose()
+    {
+        _debounceTimer?.Dispose();
+    }
+}

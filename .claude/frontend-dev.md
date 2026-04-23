@@ -277,3 +277,10 @@ PR description must include:
 - Local launch ports for Visual Studio testing: API `https://localhost:7001`, Web `https://localhost:7002`.
 - Do not start the Web/API with `dotnet run` unless the owner explicitly asks for it; manual runtime testing is expected to happen through Visual Studio.
 - `JwtAuthStateProvider` must tolerate invalid/stale localStorage tokens and parse numeric JWT claims such as `exp` via raw JSON text; otherwise Blazor can remain stuck on `Authorizing` or show generic login errors after a successful API login.
+- `MudDataGrid` `ServerData` delegate in MudBlazor 9.x requires `CancellationToken` as second parameter: `Task<GridData<T>> Load(GridState<T> state, CancellationToken ct)`.
+- String interpolation `$"..."` cannot be used directly inside Razor attribute values — use named methods or `@(...)` lambdas that call helper methods instead.
+- `MudStack` does not support `JustifyContent` — use `Justify` (e.g. `Justify="Justify.FlexEnd"`).
+- `ApiClient.PutAsync<T>` was added in Sprint 2 frontend (#49) — available for all PUT calls going forward.
+- `DeleteConfirmDialog` reusable component lives in `Components/DeleteConfirmDialog.razor` — accepts `ContentText` parameter, uses `IMudDialogInstance` cascade.
+- `PagedResult<T>` client model is in `Web/Models/Common/PagedResult.cs` (mirrors backend `PagedResult<T>`).
+- Buyer pages: `/buyers` (list), `/buyers/create`, `/buyers/{id}` (detail), `/buyers/{id}/edit`.
