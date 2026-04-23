@@ -26,5 +26,6 @@ builder.Services.AddScoped<AuthenticationStateProvider>(
 
 builder.Services.AddScoped<ApiClient>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<TenantAdminService>();
 
 await builder.Build().RunAsync();
