@@ -1,0 +1,144 @@
+@page "/buyers/{Id:guid}"
+@attribute [Authorize(Roles = "Agent,AgencyManager")]
+@inject BuyerService BuyerService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>Buyer Detail — SmartEstate</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium">
+    @if (_isLoading)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+    else if (_error is not null)
+    {
+        <MudAlert Severity="Severity.Error">@_error</MudAlert>
+    }
+    else if (_buyer is not null)
+    {
+        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+            <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
+                           OnClick="@(() => Nav.NavigateTo("/buyers"))" />
+            <MudText Typo="Typo.h5">@_buyer.FullName</MudText>
+            <MudSpacer />
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Edit"
+                       OnClick="GoToEdit">
+                Edit
+            </MudButton>
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Error"
+                       StartIcon="@Icons.Material.Filled.Delete"
+                       OnClick="ConfirmDelete">
+                Delete
+            </MudButton>
+        </MudStack>
+
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Full Name</MudText>
+                    <MudText>@_buyer.FullName</MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Email</MudText>
+                    <MudText>@(_buyer.Email ?? "—")</MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Phone</MudText>
+                    <MudText>@(_buyer.Phone ?? "—")</MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Budget (EUR)</MudText>
+                    <MudText>@FormatBudget(_buyer.BudgetMinEur, _buyer.BudgetMaxEur)</MudText>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Preferred Locations</MudText>
+                    @if (_buyer.PreferredLocations.Count > 0)
+                    {
+                        <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap" Class="mt-1">
+                            @foreach (var loc in _buyer.PreferredLocations)
+                            {
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@loc</MudChip>
+                            }
+                        </MudStack>
+                    }
+                    else
+                    {
+                        <MudText>—</MudText>
+                    }
+                </MudItem>
+                <MudItem xs="12">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Lifestyle Description</MudText>
+                    <MudText Style="white-space: pre-wrap;">@_buyer.LifestyleDescription</MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Created At</MudText>
+                    <MudText>@_buyer.CreatedAt.ToString("yyyy-MM-dd HH:mm")</MudText>
+                </MudItem>
+                @if (_buyer.UpdatedAt is not null)
+                {
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Last Updated</MudText>
+                        <MudText>@_buyer.UpdatedAt.Value.ToString("yyyy-MM-dd HH:mm")</MudText>
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private BuyerDto? _buyer;
+    private bool _isLoading = true;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _buyer = await BuyerService.GetByIdAsync(Id);
+        if (_buyer is null)
+            _error = "Buyer not found.";
+        _isLoading = false;
+    }
+
+    private void GoToEdit() => Nav.NavigateTo($"/buyers/{Id}/edit");
+
+    private async Task ConfirmDelete()
+    {
+        var parameters = new DialogParameters<DeleteConfirmDialog>
+        {
+            { x => x.ContentText, $"Are you sure you want to delete buyer \"{_buyer!.FullName}\"? This action cannot be undone." }
+        };
+
+        var dialog = await DialogService.ShowAsync<DeleteConfirmDialog>("Delete Buyer", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            var (success, error) = await BuyerService.DeleteAsync(Id);
+            if (success)
+            {
+                Snackbar.Add("Buyer deleted.", Severity.Success);
+                Nav.NavigateTo("/buyers");
+            }
+            else
+            {
+                Snackbar.Add(error ?? "Failed to delete buyer.", Severity.Error);
+            }
+        }
+    }
+
+    private static string FormatBudget(decimal? min, decimal? max)
+    {
+        if (min is null && max is null) return "—";
+        if (min is not null && max is not null) return $"€{min:N0} – €{max:N0}";
+        if (min is not null) return $"€{min:N0}+";
+        return $"up to €{max:N0}";
+    }
+}
