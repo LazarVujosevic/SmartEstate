@@ -217,7 +217,7 @@ Owner reviews milestone → plans next sprint with Lead Dev
 | Sprint | Status | Summary |
 |---|---|---|
 | Sprint 0 | ✅ Complete | Foundation — Docker, EF Core migration, Serilog, Blazor layout, CI pipeline |
-| Sprint 1 | Planned | Auth (JWT login), multi-tenancy middleware, admin tenant/user management |
+| Sprint 1 | 🔄 In Progress | Auth (JWT login), multi-tenancy middleware, admin tenant/user management |
 | Sprint 2 | Planned | Buyer CRUD (backend + frontend) |
 | Sprint 3 | Planned | Property CRUD (backend + frontend) |
 | Sprint 4 | Planned | Gemini AI tagging for buyers and properties |
@@ -261,7 +261,7 @@ Owner reviews milestone → plans next sprint with Lead Dev
 
 ---
 
-### Sprint 1 — Auth & Multi-Tenancy `[Planned — Next]`
+### Sprint 1 — Auth & Multi-Tenancy `[🔄 In Progress]`
 
 **Goal:** No one can do anything without auth. This sprint is a hard blocker for all feature sprints.
 **Depends on:** Sprint 0 complete ✅.
@@ -507,6 +507,12 @@ Owner reviews milestone → plans next sprint with Lead Dev
 - `Administrator` role is seeded on first run — credentials read from `ADMIN_EMAIL` / `ADMIN_PASSWORD` env vars (or `appsettings.Development.json`); if not set, seeder skips with a warning log
 - CORS policy in API is named `"BlazorWasm"` — configured for `https://localhost:7002` in dev; update `AllowedOrigins` in `appsettings.json` for prod
 - Scraping portals (4zida, halooglasi, etc.) may change their HTML structure — scrapers must fail gracefully, log full context, and continue; never crash the worker
+- `System.IdentityModel.Tokens.Jwt 8.17.0` must be explicitly added to Infrastructure — it is NOT transitively available via `FrameworkReference Include="Microsoft.AspNetCore.App"` even though JwtBearer is in the framework
+- `UseSerilogRequestLogging()` must come **before** `UseExceptionHandler()` in `Program.cs` — otherwise Serilog does not capture the rewritten status code from exception handling
+- `GlobalExceptionHandler` (implements `IExceptionHandler`) is in `API/Common/` — catches `FluentValidation.ValidationException` from the MediatR pipeline and returns `400 Bad Request` with `ApiResponse` shape; catches all other exceptions and returns `500`
+- `IAuthService` pattern: when Application handlers need Identity concerns (`UserManager` etc.), define `IXxxService` in Application and implement in Infrastructure — keeps Application layer free of Identity types
+- `JwtSettings` options class at `Infrastructure/Identity/JwtSettings.cs`, bound via `services.Configure<JwtSettings>(configuration.GetSection("Jwt"))` — properties: `Secret`, `Issuer`, `Audience`, `ExpiryMinutes` (default 60)
+- JWT `Secret` is validated at startup (≥ 32 chars) — app throws `InvalidOperationException` if missing or too short; placeholder in `appsettings.json` is long enough for dev
 
 ### Frontend
 - Docker Compose credentials are in `.env` (gitignored) — copy `.env.example` to `.env` before first `docker compose up -d`

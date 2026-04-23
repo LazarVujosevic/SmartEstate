@@ -6,6 +6,7 @@ using SmartEstate.API.Common;
 using SmartEstate.Application;
 using SmartEstate.Infrastructure;
 using SmartEstate.Infrastructure.Logging;
+using SmartEstate.Infrastructure.MultiTenancy;
 using SmartEstate.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -27,7 +28,6 @@ if (string.IsNullOrWhiteSpace(jwtSecret) || jwtSecret.Length < 32)
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddHttpContextAccessor();
 
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -75,6 +75,7 @@ app.UseHttpsRedirection();
 app.UseCors("BlazorWasm");
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<TenantMiddleware>();
 app.MapControllers();
 
 app.Run();
