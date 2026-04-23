@@ -235,7 +235,28 @@ When starting a new sprint:
 4. Assign correct labels (`backend`, `frontend`, `architecture`) per the sprint plan
 5. Check Sprint Plan notes for any "already done" items before creating issues — avoid duplicating work
 
-**Current state (as of 2026-04-23):** Sprint 0 ✅ Complete. Sprint 1 ✅ Complete. **Sprint 2 (Buyers) and Sprint 3 (Properties) are next and can run in parallel.**
+**Current state (as of 2026-04-23):** Sprint 0 ✅ Complete. Sprint 1 ✅ Complete. **Sprint 2 (Buyers) and Sprint 3 (Properties) are next and can run in parallel.** Lead onboarding check confirmed `main` branch, no open GitHub PRs, and no open GitHub issues. Local `dotnet build SmartEstate.slnx` reached compile/copy stage but failed because Visual Studio and a running `SmartEstate.API` process had output DLLs locked; this is an environment lock, not a source compile error. NU1903 warnings remain tied to the known unused Domain Identity package cleanup.
+
+### Sprint 2 Planning Notes — Buyer Management (2026-04-23)
+
+Sprint 2 is planned as 7 atomic issues: 4 backend, 3 frontend. The canonical detailed plan is in `CLAUDE.md` under "Sprint 2 — Buyer Management".
+
+Lead decisions for Sprint 2:
+- Current `Buyer` entity is not yet sufficient for the planned MVP UI/API. Add `BudgetMinEur`, `BudgetMaxEur`, `PreferredLocations`, and `IsDeleted` before CRUD endpoint work.
+- `AssignedAgentId` must come from the authenticated JWT `sub` claim, not from user input.
+- Do not introduce a repository abstraction in Sprint 2; current implemented pattern is Application handlers using `IApplicationDbContext` directly.
+- Buyer handlers must rely on tenant global query filters and must not use `.IgnoreQueryFilters()`.
+- Soft-deleted buyers should be hidden by default via query filters or equivalent central query behavior.
+- Sprint 2 excludes AI tagging; AI fields remain reserved for Sprint 4.
+
+Pre-Sprint 2 cleanup completed:
+- Fixed auth UX gap from Sprint 1: app bar exposes Sign In / Sign Out, public `/` is a landing page, protected tenant dashboard lives at `/dashboard`, and non-admin feature nav links are hidden unless the user is `Agent` or `AgencyManager`.
+- Updated `RedirectToLogin` so authenticated users who hit a route without the required role are sent back to `/` instead of being redirected to login and potentially looping.
+- Follow-up correction: `/` is now a public landing page, the protected tenant-user dashboard is `/dashboard`, and login redirects are role-aware (`Administrator` to `/admin/tenants`, tenant users to `/dashboard`).
+- Fixed API auth scheme configuration so protected endpoints use JWT bearer auth instead of Identity cookie redirects to `/Account/Login`.
+- Local test accounts were created through the real flow for admin, active AgencyManager, and inactive-tenant AgencyManager. Agent account was not created because the product does not yet have a production endpoint for creating `Agent` users.
+- Owner instruction as of 2026-04-24: do not start API/Web with `dotnet run` or publish anything unless explicitly requested. Manual app execution/testing should be done through Visual Studio.
+- Fixed frontend JWT parsing after a successful API login: standard role claim URI and numeric `exp` values must parse correctly, and invalid/stale localStorage tokens must be cleared instead of leaving the app stuck on `Authorizing`.
 
 ## PR Review Process Notes
 

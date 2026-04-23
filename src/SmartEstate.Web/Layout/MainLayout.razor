@@ -1,5 +1,7 @@
 @inherits LayoutComponentBase
 @inject ILocalStorageService LocalStorage
+@inject AuthService AuthService
+@inject NavigationManager Nav
 
 <MudThemeProvider @ref="_themeProvider" Theme="_theme" @bind-IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
@@ -22,6 +24,24 @@
                            Color="Color.Inherit"
                            OnClick="ToggleTheme" />
         </MudTooltip>
+
+        <AuthorizeView>
+            <Authorized>
+                <MudTooltip Text="Sign out">
+                    <MudIconButton Icon="@Icons.Material.Filled.Logout"
+                                   Color="Color.Inherit"
+                                   OnClick="Logout" />
+                </MudTooltip>
+            </Authorized>
+            <NotAuthorized>
+                <MudButton Variant="Variant.Text"
+                           Color="Color.Inherit"
+                           StartIcon="@Icons.Material.Filled.Login"
+                           OnClick="GoToLogin">
+                    Sign In
+                </MudButton>
+            </NotAuthorized>
+        </AuthorizeView>
     </MudAppBar>
 
     <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
@@ -84,5 +104,21 @@
     private void ToggleDrawer()
     {
         _drawerOpen = !_drawerOpen;
+    }
+
+    private void GoToLogin()
+    {
+        var relative = Nav.ToBaseRelativePath(Nav.Uri);
+        var returnUrl = string.IsNullOrWhiteSpace(relative)
+            ? "/"
+            : $"/{relative}";
+
+        Nav.NavigateTo($"/login?returnUrl={Uri.EscapeDataString(returnUrl)}");
+    }
+
+    private async Task Logout()
+    {
+        await AuthService.LogoutAsync();
+        Nav.NavigateTo("/", replace: true);
     }
 }

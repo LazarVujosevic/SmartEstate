@@ -271,6 +271,8 @@ PR description must include:
 - `JwtSecurityTokenHandler` should be `static readonly` in `AuthService` — thread-safe, no need to instantiate per-request
 - If user has no roles assigned, return `Error.Unauthorized` — do not issue a token with empty role claim
 - JWT `Secret` must be ≥ 32 chars — validated at startup, app throws `InvalidOperationException` if not
+- API authentication must explicitly set JWT bearer as `DefaultAuthenticateScheme`, `DefaultChallengeScheme`, and `DefaultScheme`; Identity registers cookie schemes and can otherwise cause `[Authorize]` API endpoints to redirect to `/Account/Login` instead of accepting bearer tokens.
+- API skips `UseHttpsRedirection()` in Development only to avoid interfering with alternate local profiles; Visual Studio HTTPS profiles remain the expected manual testing path. Keep HTTPS enforcement for non-Development environments.
 
 ### Multi-Tenancy (Sprint 1)
 - `TenantContext` (`Infrastructure/Services/TenantContext.cs`) is a **settable POCO** — `TenantId` and `IsAdministrator` are set by `TenantMiddleware` at request start; do NOT read from `IHttpContextAccessor` inside `TenantContext`

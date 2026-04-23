@@ -24,15 +24,23 @@ public class JwtAuthStateProvider : AuthenticationStateProvider
         if (string.IsNullOrWhiteSpace(token))
             return AnonymousState;
 
-        var claims = ParseClaimsFromJwt(token);
-        if (IsTokenExpired(claims))
+        try
+        {
+            var claims = ParseClaimsFromJwt(token);
+            if (IsTokenExpired(claims))
+            {
+                await _localStorage.RemoveItemAsync(TokenKey);
+                return AnonymousState;
+            }
+
+            var identity = new ClaimsIdentity(claims, "jwt");
+            return new AuthenticationState(new ClaimsPrincipal(identity));
+        }
+        catch
         {
             await _localStorage.RemoveItemAsync(TokenKey);
             return AnonymousState;
         }
-
-        var identity = new ClaimsIdentity(claims, "jwt");
-        return new AuthenticationState(new ClaimsPrincipal(identity));
     }
 
     public async Task Login(string token)
@@ -52,9 +60,14 @@ public class JwtAuthStateProvider : AuthenticationStateProvider
 
     private static IEnumerable<Claim> ParseClaimsFromJwt(string jwt)
     {
-        var payload = jwt.Split('.')[1];
+        var parts = jwt.Split('.');
+        if (parts.Length != 3)
+            throw new FormatException("Invalid JWT format.");
+
+        var payload = parts[1];
         var jsonBytes = DecodeBase64Url(payload);
-        var kvp = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(jsonBytes)!;
+        var kvp = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(jsonBytes)
+            ?? throw new FormatException("Invalid JWT payload.");
 
         var claims = new List<Claim>();
         foreach (var (key, value) in kvp)
@@ -64,6 +77,7 @@ public class JwtAuthStateProvider : AuthenticationStateProvider
                 "sub" => ClaimTypes.NameIdentifier,
                 "email" => ClaimTypes.Email,
                 "role" => ClaimTypes.Role,
+                ClaimTypes.Role => ClaimTypes.Role,
                 _ => key
             };
 
@@ -74,12 +88,17 @@ public class JwtAuthStateProvider : AuthenticationStateProvider
             }
             else
             {
-                claims.Add(new Claim(type, value.GetString() ?? value.GetRawText()));
+                claims.Add(new Claim(type, GetClaimValue(value)));
             }
         }
 
         return claims;
     }
+
+    private static string GetClaimValue(JsonElement value) =>
+        value.ValueKind == JsonValueKind.String
+            ? value.GetString() ?? string.Empty
+            : value.GetRawText();
 
     private static bool IsTokenExpired(IEnumerable<Claim> claims)
     {

@@ -178,8 +178,9 @@ Owner reviews milestone → plans next sprint with Lead Dev
 ## Environment Configuration
 
 **Local Dev:**
-- API runs on `https://localhost:7001`
-- Web (Blazor WASM) runs on `https://localhost:7002`  
+- API runs on `https://localhost:7001` through Visual Studio launch profiles
+- Web (Blazor WASM) runs on `https://localhost:7002` through Visual Studio launch profiles
+- Do not start API/Web with `dotnet run` unless the owner explicitly asks for it; local manual testing is expected to go through Visual Studio
 - Workers run independently
 - PostgreSQL via Docker: `localhost:5432` (db: `smartestate`, user: `smartestate`, pass: see docker-compose)
 - pgAdmin via Docker: `http://localhost:5050`
@@ -213,6 +214,7 @@ Owner reviews milestone → plans next sprint with Lead Dev
 | 2026-04-23 | `ITenantCache` in Application, `TenantCache` in Infrastructure | Cache invalidation after tenant activation needs to happen in a handler (Application layer); defining a thin `ITenantCache` interface avoids leaking `IMemoryCache` into Application |
 | 2026-04-23 | `Tenant.Plan` added via `AddTenantPlan` migration | Sprint 0 schema did not include Plan; added as nullable string in Sprint 1 to avoid breaking existing rows |
 | 2026-04-23 | `HealthController` and `PingController` deleted | Were test scaffolding only; no production health endpoint needed until Sprint 10 (DB-verified health check) |
+| 2026-04-23 | JWT bearer is the explicit default auth scheme | ASP.NET Identity registers cookie schemes; API endpoints must authenticate/challenge with JWT instead of redirecting to `/Account/Login` |
 
 ---
 
@@ -301,21 +303,97 @@ Owner reviews milestone → plans next sprint with Lead Dev
 **Depends on:** Sprint 1 complete (auth + tenant middleware required).
 **Can run in parallel with:** Sprint 3.
 
-**Backend tasks:**
-| Task | Label |
-|---|---|
-| POST `/buyers` — create buyer (name, lifestyle description, budget range, preferred locations) | `backend` |
-| GET `/buyers` — paginated list for current tenant | `backend` |
-| GET `/buyers/{id}` — buyer details | `backend` |
-| PUT `/buyers/{id}` — update buyer | `backend` |
-| DELETE `/buyers/{id}` — soft delete (`IsDeleted` flag, filtered by default) | `backend` |
+**Detailed Sprint 2 planning (prepared 2026-04-23):**
 
-**Frontend tasks:**
-| Task | Label |
-|---|---|
-| Buyer list page — MudDataGrid with pagination, search by name | `frontend` |
-| Buyer create/edit form — modal or dedicated page | `frontend` |
-| Buyer detail page — full profile view | `frontend` |
+**Backend issue sequence:**
+| # | GitHub Issue | Task | Label | Status |
+|---|---|---|---|---|
+| 2.1 | TBD | Buyer schema + API contract foundation | `backend` | Planned |
+| 2.2 | TBD | POST `/buyers` + GET `/buyers` paginated list | `backend` | Planned |
+| 2.3 | TBD | GET `/buyers/{id}` + PUT `/buyers/{id}` | `backend` | Planned |
+| 2.4 | TBD | DELETE `/buyers/{id}` soft delete | `backend` | Planned |
+
+**Frontend issue sequence:**
+| # | GitHub Issue | Task | Label | Status |
+|---|---|---|---|---|
+| 2.5 | TBD | Buyer models/service + navigation entry | `frontend` | Planned |
+| 2.6 | TBD | Buyer list page with MudDataGrid, pagination, search | `frontend` | Planned |
+| 2.7 | TBD | Buyer create/edit/detail UI | `frontend` | Planned |
+
+**Backend issue details:**
+
+**2.1 — Buyer schema + API contract foundation**
+- Add missing `Buyer` fields required by Sprint 2: `BudgetMinEur`, `BudgetMaxEur`, `PreferredLocations`, `IsDeleted`.
+- Add EF Core migration for buyer fields. Existing rows must remain valid; use nullable budget fields if needed.
+- Update query filter behavior so soft-deleted buyers are excluded by default while tenant filtering still applies.
+- Add Buyer DTO/request contracts in Application/API layers: `BuyerDto`, `BuyerListItemDto`, create/update commands, and a reusable paged result model if none exists yet.
+- Confirm `AssignedAgentId` is set from authenticated JWT `sub` claim, not from client-provided input.
+- No AI tagging in Sprint 2; leave `AiTags`, `AiProfile`, `LastAiProcessedAt` untouched for Sprint 4.
+
+**2.2 — POST `/buyers` + GET `/buyers` paginated list**
+- `POST /api/buyers` creates buyer for current tenant and authenticated agent.
+- Allowed roles: `Agent`, `AgencyManager`.
+- Required create fields: `fullName`, `lifestyleDescription`.
+- Optional create fields: `email`, `phone`, `budgetMinEur`, `budgetMaxEur`, `preferredLocations`.
+- Validate: full name max 200 chars, lifestyle description max 4000 chars, email format if present, phone max 50 chars, budget min/max non-negative, min <= max.
+- `GET /api/buyers?pageNumber=1&pageSize=20&search=...` returns current-tenant, non-deleted buyers only.
+- Search matches buyer full name, email, phone, and preferred locations.
+- Response shape stays `ApiResponse<PagedResult<BuyerListItemDto>>`.
+
+**2.3 — GET `/buyers/{id}` + PUT `/buyers/{id}`**
+- `GET /api/buyers/{id}` returns full buyer details for the current tenant only.
+- `PUT /api/buyers/{id}` updates editable profile fields and sets `UpdatedAt`.
+- Update must not allow changing `TenantId`, `AssignedAgentId`, AI fields, or soft-delete state.
+- Return 404 if buyer does not exist, belongs to another tenant, or is soft-deleted.
+- Response shape stays `ApiResponse<BuyerDto>`.
+
+**2.4 — DELETE `/buyers/{id}` soft delete**
+- `DELETE /api/buyers/{id}` sets `IsDeleted = true` and `UpdatedAt`, it does not physically remove the row.
+- Return 204 or `ApiResponse<object>` consistently with current controller conventions; prefer `Ok(ApiResponse<object>.Ok(...))` unless a project-wide no-content convention is introduced first.
+- Repeated delete of an already deleted buyer should return 404 through the default filter.
+- Do not delete `MatchReport` records; Sprint 5 matching/report history depends on them.
+
+**Frontend issue details:**
+
+**2.5 — Buyer models/service + navigation entry**
+- Add frontend buyer DTOs/requests matching API contracts.
+- Add `BuyerService` wrapping `ApiClient`.
+- Add role-protected Buyers nav entry for `Agent` and `AgencyManager`.
+- Do not show Buyers nav item to `Administrator`.
+
+**2.6 — Buyer list page**
+- Route: `/buyers`.
+- Protect with `[Authorize(Roles = "Agent,AgencyManager")]`.
+- Use `MudDataGrid` with server-side pagination when API is available.
+- Columns: full name, email/phone, budget range, preferred locations, assigned/created date.
+- Include search by name/contact/location, loading state, empty state, and error state.
+- Actions: view, edit, delete.
+
+**2.7 — Buyer create/edit/detail UI**
+- Create/edit can be modal or dedicated page; use whichever fits existing MudBlazor patterns best.
+- Detail page route: `/buyers/{id:guid}`.
+- Fields: full name, email, phone, lifestyle description, budget min/max, preferred locations.
+- Preferred locations can be stored as a string list; UI may use chips or comma-separated entry for MVP.
+- Delete action should require confirmation dialog.
+- After create/update/delete, show snackbar feedback and refresh/navigate predictably.
+
+**API contract summary:**
+| Method | Route | Roles | Purpose |
+|---|---|---|---|
+| POST | `/api/buyers` | `Agent`, `AgencyManager` | Create buyer |
+| GET | `/api/buyers` | `Agent`, `AgencyManager` | Paginated buyer list |
+| GET | `/api/buyers/{id}` | `Agent`, `AgencyManager` | Buyer details |
+| PUT | `/api/buyers/{id}` | `Agent`, `AgencyManager` | Update buyer |
+| DELETE | `/api/buyers/{id}` | `Agent`, `AgencyManager` | Soft delete buyer |
+
+**Implementation constraints:**
+- Follow current CQRS pattern using `IApplicationDbContext`; do not introduce a repository abstraction unless a separate architecture issue approves it.
+- Controllers must only map route/body/claims and dispatch MediatR commands/queries.
+- Tenant isolation relies on EF global query filters; never use `.IgnoreQueryFilters()` in Buyer handlers.
+- Use `ApiResponse<T>` for every endpoint and avoid `Problem()`.
+- Use constants for role names and claim names where available. If reading JWT `sub`, add an `AppClaims.UserId`/`Subject` constant before using a literal.
+- Add database index on `(TenantId, IsDeleted, FullName)` or an equivalent useful index for paginated/search list queries.
+- Local verification before PR: `dotnet build SmartEstate.slnx` and manual API smoke tests for create/list/detail/update/delete with tenant JWT.
 
 ---
 
@@ -512,7 +590,7 @@ Owner reviews milestone → plans next sprint with Lead Dev
 - Migration command: `dotnet ef migrations add <Name> --project src/SmartEstate.Infrastructure --startup-project src/SmartEstate.API`
 - All database migrations must be applied manually (no auto-migration on startup in production)
 - `Administrator` role is seeded on first run — credentials read from `ADMIN_EMAIL` / `ADMIN_PASSWORD` env vars (or `appsettings.Development.json`); if not set, seeder skips with a warning log
-- CORS policy in API is named `"BlazorWasm"` — configured for `https://localhost:7002` in dev; update `AllowedOrigins` in `appsettings.json` for prod
+- CORS policy in API is named `"BlazorWasm"` — configured for local web origins `https://localhost:7002` and `http://localhost:5023`; update `AllowedOrigins` in `appsettings.json` for prod
 - Scraping portals (4zida, halooglasi, etc.) may change their HTML structure — scrapers must fail gracefully, log full context, and continue; never crash the worker
 - `System.IdentityModel.Tokens.Jwt 8.17.0` must be explicitly added to Infrastructure — it is NOT transitively available via `FrameworkReference Include="Microsoft.AspNetCore.App"` even though JwtBearer is in the framework
 - `UseSerilogRequestLogging()` must come **before** `UseExceptionHandler()` in `Program.cs` — otherwise Serilog does not capture the rewritten status code from exception handling
@@ -531,6 +609,8 @@ Owner reviews milestone → plans next sprint with Lead Dev
 - `InactiveTenantMiddleware` in `Infrastructure/MultiTenancy/` — runs after `TenantMiddleware`; skips `/health` and `/ping` paths; caches `Tenant.IsActive` for 60s; registered via `app.UseMiddleware<InactiveTenantMiddleware>()`
 - API request body records live in `API/Models/Requests/` — one file per record (e.g. `CreateTenantUserRequest.cs`, `SetTenantActiveRequest.cs`)
 - `HealthController` and `PingController` were deleted — they were test scaffolding; a proper DB-verified health endpoint is planned for Sprint 10
+- API `Program.cs` must set JWT bearer as `DefaultAuthenticateScheme`, `DefaultChallengeScheme`, and `DefaultScheme`; otherwise Identity cookie auth can become the challenge scheme and protected API endpoints redirect to `/Account/Login` instead of accepting bearer tokens.
+- API skips `UseHttpsRedirection()` in Development only to avoid interfering with alternate local profiles; Visual Studio HTTPS profiles remain the expected manual testing path. Keep HTTPS enforcement for non-Development environments.
 
 ### Frontend
 - Docker Compose credentials are in `.env` (gitignored) — copy `.env.example` to `.env` before first `docker compose up -d`
@@ -539,6 +619,8 @@ Owner reviews milestone → plans next sprint with Lead Dev
 - MudBlazor 9.x: required providers in layout are `MudThemeProvider`, `MudPopoverProvider`, `MudDialogProvider`, `MudSnackbarProvider` — all four must be present or dropdowns/dialogs/snackbars will silently fail
 - Theme preference is stored in `localStorage` under key `smartestate_dark_mode` (bool) — read in `OnAfterRenderAsync`, not `OnInitializedAsync` (localStorage is unavailable during prerender)
 - `AuthorizeRouteView` + `RedirectToLogin` are already wired in `App.razor` — Sprint 1 Frontend only needs to register `JwtAuthStateProvider` and build the Login page
+- Pre-Sprint 2 auth UX cleanup completed on 2026-04-23: `/` is a public landing page, `/dashboard` is the protected tenant-user dashboard, `MainLayout` shows Sign In / Sign Out actions, `NavMenu` hides role-specific links behind `AuthorizeView`, and login redirects are role-aware (`Administrator` → `/admin/tenants`, tenant users → `/dashboard`).
+- Local login fix on 2026-04-24: `JwtAuthStateProvider` handles standard role claim URIs, numeric `exp` claims, and invalid/stale localStorage tokens without leaving Blazor stuck on `Authorizing`.
 - Admin tenant management uses `TenantAdminService` over `ApiClient` for `GET/POST/PATCH api/admin/tenants`; register feature-specific frontend services in `Program.cs`
 - Administrator-only navigation links belong inside `<AuthorizeView Roles="Administrator">`; current admin entry point is `/admin/tenants`
 - Gemini API has rate limits on free tier — batch AI requests where possible, avoid per-request calls in loops
@@ -548,3 +630,11 @@ Owner reviews milestone → plans next sprint with Lead Dev
 - GitHub Actions workflow: `.github/workflows/ci.yml` — triggers on PR to `main`, job name is `Build & Test`
 - Branch protection on `main` requires `Build & Test` status check to pass before merge
 - GitHub does not allow self-approve on PRs — Lead Dev uses `gh pr merge --admin` when CI hasn't run yet on infrastructure/arch PRs
+- Lead onboarding check on 2026-04-23: local repo is on `main`, GitHub has no open PRs and no open issues. Local build can be blocked by running Visual Studio / `SmartEstate.API` processes locking output DLLs; stop those processes before using local build result as verification.
+
+### Local Test Accounts
+- Created in the local database on 2026-04-23 through the real production-style flow: admin via startup seed, tenants via `POST /api/admin/tenants`, AgencyManagers via `POST /api/admin/tenants/{tenantId}/users`.
+- `admin@smartestate.local` is global `Administrator`; expected UI: public landing when logged out, then Administration → Tenants after login, no tenant feature nav.
+- `manager.active@smartestate.local` belongs to active tenant `Demo Realty Active`; expected UI: Dashboard, Buyers, Properties, Matches, FSBO Leads, Notifications; no Administration.
+- `manager.inactive@smartestate.local` belongs to inactive tenant `Demo Realty Inactive`; login succeeds, but tenant-scoped API calls return `403`.
+- Do not document local passwords in tracked files; keep them in session/user notes only.

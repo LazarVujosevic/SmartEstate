@@ -78,7 +78,7 @@
     {
         var state = await AuthStateProvider.GetAuthenticationStateAsync();
         if (state.User.Identity?.IsAuthenticated == true)
-            Nav.NavigateTo(GetReturnUrl(), replace: true);
+            Nav.NavigateTo(await GetReturnUrl(), replace: true);
     }
 
     private async Task HandleLogin()
@@ -96,7 +96,7 @@
         switch (result)
         {
             case LoginResult.Success:
-                Nav.NavigateTo(GetReturnUrl(), replace: true);
+                Nav.NavigateTo(await GetReturnUrl(), replace: true);
                 break;
             case LoginResult.Unauthorized:
                 _error = "Invalid email or password.";
@@ -107,10 +107,30 @@
         }
     }
 
-    private string GetReturnUrl()
+    private async Task<string> GetReturnUrl()
     {
-        if (string.IsNullOrWhiteSpace(ReturnUrl)) return "/";
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = state.User;
+
+        if (user.IsInRole("Administrator") && IsDefaultReturnUrl(ReturnUrl))
+            return "/admin/tenants";
+
+        if (string.IsNullOrWhiteSpace(ReturnUrl))
+            return "/dashboard";
+
         var decoded = Uri.UnescapeDataString(ReturnUrl);
-        return decoded.StartsWith('/') ? decoded : "/";
+        if (decoded == "/")
+            return user.IsInRole("Administrator") ? "/admin/tenants" : "/dashboard";
+
+        return decoded.StartsWith('/') ? decoded : "/dashboard";
+    }
+
+    private static bool IsDefaultReturnUrl(string? returnUrl)
+    {
+        if (string.IsNullOrWhiteSpace(returnUrl))
+            return true;
+
+        var decoded = Uri.UnescapeDataString(returnUrl);
+        return decoded is "/" or "/dashboard";
     }
 }

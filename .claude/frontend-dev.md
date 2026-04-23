@@ -271,3 +271,9 @@ PR description must include:
 - Admin tenant management page lives at `Pages/Admin/Tenants.razor` and is protected with `[Authorize(Roles = "Administrator")]`.
 - Use `TenantAdminService` for admin tenant HTTP calls and register it in `Program.cs`; it wraps `ApiClient` calls to `api/admin/tenants`.
 - Admin navigation entries must be wrapped in `<AuthorizeView Roles="Administrator">`; `/admin/tenants` is listed under the "Administration" nav group.
+- Auth shell UX cleanup completed before Sprint 2: `MainLayout` shows Sign In for anonymous users and Sign Out for authenticated users; `/` is public landing; `/dashboard` is protected; normal feature nav links are visible only to `Agent`/`AgencyManager`; admin nav remains Administrator-only.
+- `RedirectToLogin` checks auth state: anonymous users go to `/login?returnUrl=...`, while authenticated users without the required route role are redirected to `/` to avoid login redirect loops.
+- Login defaults to `/admin/tenants` for `Administrator` and `/dashboard` for tenant users when no explicit return URL is supplied.
+- Local launch ports for Visual Studio testing: API `https://localhost:7001`, Web `https://localhost:7002`.
+- Do not start the Web/API with `dotnet run` unless the owner explicitly asks for it; manual runtime testing is expected to happen through Visual Studio.
+- `JwtAuthStateProvider` must tolerate invalid/stale localStorage tokens and parse numeric JWT claims such as `exp` via raw JSON text; otherwise Blazor can remain stuck on `Authorizing` or show generic login errors after a successful API login.

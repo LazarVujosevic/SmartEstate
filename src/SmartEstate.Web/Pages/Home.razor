@@ -1,7 +1,51 @@
 @page "/"
 @attribute [AllowAnonymous]
+@inject NavigationManager Nav
 
-<PageTitle>Dashboard — SmartEstate</PageTitle>
+<PageTitle>SmartEstate</PageTitle>
 
-<MudText Typo="Typo.h5" GutterBottom="true">Dashboard</MudText>
-<MudText Typo="Typo.body1" Color="Color.Secondary">Coming soon — Sprint 9.</MudText>
+<MudGrid Class="py-8">
+    <MudItem xs="12" md="7">
+        <MudStack Spacing="3">
+            <MudText Typo="Typo.h3">SmartEstate</MudText>
+            <MudText Typo="Typo.h6" Color="Color.Secondary">
+                Multi-tenant workspace for real estate agencies.
+            </MudText>
+            <MudText Typo="Typo.body1">
+                Manage agency tenants today. Buyer, property, matching, and lead generation workflows are planned across the next sprints.
+            </MudText>
+            <MudStack Row="true" Spacing="2">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Login"
+                           OnClick="SignIn">
+                    Sign In
+                </MudButton>
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Primary"
+                           Href="/admin/tenants"
+                           StartIcon="@Icons.Material.Filled.AdminPanelSettings">
+                    Admin Panel
+                </MudButton>
+            </MudStack>
+        </MudStack>
+    </MudItem>
+
+    <MudItem xs="12" md="5">
+        <MudPaper Elevation="1" Class="pa-6">
+            <MudStack Spacing="2">
+                <MudText Typo="Typo.h6">Current MVP Status</MudText>
+                <MudText Typo="Typo.body2">Authentication and multi-tenancy are ready.</MudText>
+                <MudText Typo="Typo.body2">Administrator tenant management is available.</MudText>
+                <MudText Typo="Typo.body2">Buyer management is planned next in Sprint 2.</MudText>
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private void SignIn()
+    {
+        Nav.NavigateTo("/login?returnUrl=%2Fdashboard");
+    }
+}

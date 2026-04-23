@@ -1,29 +1,33 @@
 <MudNavMenu>
-    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">
-        Dashboard
-    </MudNavLink>
+    <AuthorizeView Roles="Agent,AgencyManager">
+        <Authorized>
+            <MudNavLink Href="/dashboard" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">
+                Dashboard
+            </MudNavLink>
 
-    <MudNavLink Href="/buyers" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.People">
-        Buyers
-    </MudNavLink>
+            <MudNavLink Href="/buyers" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.People">
+                Buyers
+            </MudNavLink>
 
-    <MudNavLink Href="/properties" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Apartment">
-        Properties
-    </MudNavLink>
+            <MudNavLink Href="/properties" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Apartment">
+                Properties
+            </MudNavLink>
 
-    <MudNavLink Href="/matches" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Handshake">
-        Matches
-    </MudNavLink>
+            <MudNavLink Href="/matches" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Handshake">
+                Matches
+            </MudNavLink>
 
-    <MudDivider Class="my-2" />
+            <MudDivider Class="my-2" />
 
-    <MudNavLink Href="/fsbo-leads" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Notifications">
-        FSBO Leads
-    </MudNavLink>
+            <MudNavLink Href="/fsbo-leads" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Notifications">
+                FSBO Leads
+            </MudNavLink>
 
-    <MudNavLink Href="/notifications" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.NotificationsNone">
-        Notifications
-    </MudNavLink>
+            <MudNavLink Href="/notifications" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.NotificationsNone">
+                Notifications
+            </MudNavLink>
+        </Authorized>
+    </AuthorizeView>
 
     <AuthorizeView Roles="Administrator">
         <Authorized>
