@@ -17,6 +17,9 @@ public class ApiClient(HttpClient http, ILocalStorageService localStorage, Navig
     public Task<ApiResponse<T>?> PostAsync<T>(string url, object body) =>
         SendAsync<T>(HttpMethod.Post, url, body);
 
+    public Task<ApiResponse<T>?> PutAsync<T>(string url, object body) =>
+        SendAsync<T>(HttpMethod.Put, url, body);
+
     public Task<ApiResponse<T>?> PatchAsync<T>(string url, object body) =>
         SendAsync<T>(HttpMethod.Patch, url, body);
 
