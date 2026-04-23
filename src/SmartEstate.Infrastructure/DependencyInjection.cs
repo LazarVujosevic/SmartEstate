@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SmartEstate.Application.Common.Interfaces;
 using SmartEstate.Infrastructure.Identity;
+using SmartEstate.Infrastructure.MultiTenancy;
 using SmartEstate.Infrastructure.Persistence;
 using SmartEstate.Infrastructure.Services;
 
@@ -30,6 +31,7 @@ public static class DependencyInjection
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<AppDbContext>());
         services.AddScoped<DataSeeder>();
         services.AddMemoryCache();
+        services.AddScoped<ITenantCache, TenantCache>();
 
         services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
             {
