@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using SmartEstate.API.Models.Requests;
 using SmartEstate.Application.Common.Models;
 using SmartEstate.Application.Features.Buyers.Commands.CreateBuyer;
+using SmartEstate.Application.Features.Buyers.Commands.DeleteBuyer;
 using SmartEstate.Application.Features.Buyers.Commands.UpdateBuyer;
 using SmartEstate.Application.Features.Buyers.DTOs;
 using SmartEstate.Application.Features.Buyers.Queries.GetBuyer;
@@ -77,6 +78,15 @@ public class BuyersController(ISender mediator) : ControllerBase
         var result = await mediator.Send(command, ct);
         return result.Match(
             dto => Ok(ApiResponse<BuyerDto>.Ok(dto)),
+            errors => MapErrors(errors));
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        var result = await mediator.Send(new DeleteBuyerCommand(id), ct);
+        return result.Match(
+            _ => Ok(ApiResponse.Ok("Buyer deleted.")),
             errors => MapErrors(errors));
     }
 
