@@ -34,7 +34,8 @@ namespace SmartEstate.Infrastructure.Persistence.Migrations
                 name: "PreferredLocations",
                 table: "Buyers",
                 type: "text[]",
-                nullable: false);
+                nullable: false,
+                defaultValueSql: "ARRAY[]::text[]");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Buyers_TenantId_IsDeleted_FullName",

@@ -3,7 +3,6 @@ namespace SmartEstate.Application.Features.Buyers.DTOs;
 public class BuyerDto
 {
     public Guid Id { get; init; }
-    public Guid TenantId { get; init; }
     public Guid AssignedAgentId { get; init; }
     public string FullName { get; init; } = string.Empty;
     public string? Email { get; init; }
