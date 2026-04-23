@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -17,7 +16,9 @@ public static class DependencyInjection
         services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
         services.AddScoped<IAuthService, AuthService>();
 
-        services.AddScoped<ITenantContext, TenantContext>();
+        // TenantContext registered both as concrete (for TenantMiddleware setter) and as interface (for all consumers)
+        services.AddScoped<TenantContext>();
+        services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
 
         services.AddDbContext<AppDbContext>((sp, options) =>
         {
