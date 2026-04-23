@@ -1,5 +1,6 @@
 @page "/buyers"
 @attribute [Authorize(Roles = "Agent,AgencyManager")]
+@implements IDisposable
 @inject BuyerService BuyerService
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
