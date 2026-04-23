@@ -65,6 +65,7 @@ coverage/
 *.p12
 secrets.json
 local.settings.json
+.env
 
 # OS
 .DS_Store

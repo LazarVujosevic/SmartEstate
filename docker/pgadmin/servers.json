@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "SmartEstate Local",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "smartestate",
+      "Username": "smartestate",
+      "SSLMode": "prefer",
+      "PassFile": "/tmp/pgpassfile"
+    }
+  }
+}
