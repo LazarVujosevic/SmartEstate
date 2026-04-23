@@ -1,7 +1,8 @@
 # Frontend Developer — Role Instructions
 
-> Read CLAUDE.md in full before doing anything.
-> Update both this file AND CLAUDE.md whenever you discover important implementation details, patterns, or UI decisions.
+> Read CLAUDE.md and `.claude/sprint-plans.md` in full before doing anything.
+> Update this file and CLAUDE.md when you discover important implementation details, patterns, or UI decisions.
+> **⚠️ Do NOT commit changes to `.claude/sprint-plans.md` — that file is maintained exclusively by Lead Dev.**
 
 ---
 

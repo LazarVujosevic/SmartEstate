@@ -1,7 +1,7 @@
 # SmartEstate — Full Sprint Plan
 
 > **Every session (Backend Dev, Frontend Dev, Lead Dev) must read this file when starting work on any sprint.**
-> Lead Dev maintains this file. Update issue numbers, statuses, and notes as work progresses.
+> **⚠️ This file is maintained exclusively by Lead Dev.** Backend Dev and Frontend Dev must NOT commit changes to this file.
 > **Critical path:** S0 → S1 → S2 → S3 → S4 → S5 → S6 → S7 → S8 → S9 → S10
 
 ---
