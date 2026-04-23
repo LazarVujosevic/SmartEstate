@@ -1,0 +1,209 @@
+@page "/buyers/{Id:guid}/edit"
+@attribute [Authorize(Roles = "Agent,AgencyManager")]
+@inject BuyerService BuyerService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>Edit Buyer — SmartEstate</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium">
+    @if (_isLoading)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+    else if (_loadError is not null)
+    {
+        <MudAlert Severity="Severity.Error">@_loadError</MudAlert>
+    }
+    else
+    {
+        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+            <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
+                           OnClick="GoToDetail" />
+            <MudText Typo="Typo.h5">Edit Buyer</MudText>
+        </MudStack>
+
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudForm @ref="_form" @bind-IsValid="_isValid">
+                <MudGrid>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string"
+                                      @bind-Value="_request.FullName"
+                                      Label="Full Name"
+                                      Required="true"
+                                      RequiredError="Full name is required."
+                                      MaxLength="200"
+                                      Counter="200" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string"
+                                      @bind-Value="_request.Email"
+                                      Label="Email"
+                                      InputType="InputType.Email"
+                                      Validation="@(new EmailAddressAttribute())" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string"
+                                      @bind-Value="_request.Phone"
+                                      Label="Phone"
+                                      MaxLength="50" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudNumericField T="decimal?"
+                                         @bind-Value="_request.BudgetMinEur"
+                                         Label="Budget Min (EUR)"
+                                         Min="0"
+                                         Format="N0"
+                                         Adornment="Adornment.Start"
+                                         AdornmentText="€" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudNumericField T="decimal?"
+                                         @bind-Value="_request.BudgetMaxEur"
+                                         Label="Budget Max (EUR)"
+                                         Min="0"
+                                         Format="N0"
+                                         Adornment="Adornment.Start"
+                                         AdornmentText="€" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string"
+                                      @bind-Value="_locationInput"
+                                      Label="Preferred Locations"
+                                      Placeholder="Type a location and press Enter"
+                                      Adornment="Adornment.End"
+                                      AdornmentIcon="@Icons.Material.Filled.Add"
+                                      OnAdornmentClick="AddLocation"
+                                      OnKeyDown="OnLocationKeyDown" />
+                        @if (_request.PreferredLocations.Count > 0)
+                        {
+                            <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap" Class="mt-2">
+                                @foreach (var loc in _request.PreferredLocations)
+                                {
+                                    <MudChip T="string"
+                                             Size="Size.Small"
+                                             Variant="Variant.Outlined"
+                                             OnClose="@(() => RemoveLocation(loc))">@loc</MudChip>
+                                }
+                            </MudStack>
+                        }
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string"
+                                      @bind-Value="_request.LifestyleDescription"
+                                      Label="Lifestyle Description"
+                                      Required="true"
+                                      RequiredError="Lifestyle description is required."
+                                      Lines="6"
+                                      MaxLength="4000"
+                                      Counter="4000" />
+                    </MudItem>
+                </MudGrid>
+            </MudForm>
+
+            @if (_budgetError is not null)
+            {
+                <MudAlert Severity="Severity.Warning" Class="mt-3">@_budgetError</MudAlert>
+            }
+
+            <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-4" Spacing="2">
+                <MudButton Variant="Variant.Text" OnClick="GoToDetail">Cancel</MudButton>
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           Disabled="_isProcessing"
+                           OnClick="Submit">
+                    @if (_isProcessing)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        <span>Saving...</span>
+                    }
+                    else
+                    {
+                        <span>Save Changes</span>
+                    }
+                </MudButton>
+            </MudStack>
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private MudForm _form = null!;
+    private bool _isValid;
+    private bool _isLoading = true;
+    private string? _loadError;
+    private bool _isProcessing;
+    private string? _budgetError;
+    private string _locationInput = string.Empty;
+
+    private readonly UpdateBuyerRequest _request = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var buyer = await BuyerService.GetByIdAsync(Id);
+        if (buyer is null)
+        {
+            _loadError = "Buyer not found.";
+        }
+        else
+        {
+            _request.FullName = buyer.FullName;
+            _request.Email = buyer.Email;
+            _request.Phone = buyer.Phone;
+            _request.LifestyleDescription = buyer.LifestyleDescription;
+            _request.BudgetMinEur = buyer.BudgetMinEur;
+            _request.BudgetMaxEur = buyer.BudgetMaxEur;
+            _request.PreferredLocations = [.. buyer.PreferredLocations];
+        }
+        _isLoading = false;
+    }
+
+    private void GoToDetail() => Nav.NavigateTo($"/buyers/{Id}");
+
+    private void AddLocation()
+    {
+        var loc = _locationInput.Trim();
+        if (!string.IsNullOrEmpty(loc) && !_request.PreferredLocations.Contains(loc))
+            _request.PreferredLocations.Add(loc);
+        _locationInput = string.Empty;
+    }
+
+    private void RemoveLocation(string loc) => _request.PreferredLocations.Remove(loc);
+
+    private void OnLocationKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") AddLocation();
+    }
+
+    private async Task Submit()
+    {
+        await _form.ValidateAsync();
+        if (!_isValid) return;
+
+        _budgetError = null;
+        if (_request.BudgetMinEur.HasValue && _request.BudgetMaxEur.HasValue
+            && _request.BudgetMinEur > _request.BudgetMaxEur)
+        {
+            _budgetError = "Budget minimum must be less than or equal to maximum.";
+            return;
+        }
+
+        _isProcessing = true;
+        var (buyer, error) = await BuyerService.UpdateAsync(Id, _request);
+        _isProcessing = false;
+
+        if (buyer is not null)
+        {
+            Snackbar.Add("Buyer updated.", Severity.Success);
+            Nav.NavigateTo($"/buyers/{Id}");
+        }
+        else
+        {
+            Snackbar.Add(error ?? "Failed to update buyer.", Severity.Error);
+        }
+    }
+}
