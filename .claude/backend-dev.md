@@ -219,9 +219,51 @@ PR description must include:
 
 ## Implementation Notes & Discoveries
 
-*(Update this section as you implement features)*
+### NuGet Version Constraints
+- `Serilog.Sinks.File` must be **`7.0.0`** — `Serilog.AspNetCore 10.0.0` requires `>= 7.0.0` transitively; specifying 6.0.0 causes NU1605 downgrade error that fails the build
+- `Microsoft.EntityFrameworkCore.Design` must be added to **both** `SmartEstate.Infrastructure` (already there) **and** `SmartEstate.API` (startup project) — EF Core CLI tools check the startup project
 
-- Connection string format for Npgsql: `Host=localhost;Port=5432;Database=smartestate;Username=smartestate;Password=<see docker-compose>`
-- EF Core migrations must target `SmartEstate.Infrastructure` with `SmartEstate.API` as startup project
+### EF Core Migrations
+- Install tool once: `dotnet tool install --global dotnet-ef`
+- Generate migration: `dotnet ef migrations add <Name> --project src/SmartEstate.Infrastructure --startup-project src/SmartEstate.API --output-dir Persistence/Migrations`
+- Apply to DB: `dotnet ef database update --project src/SmartEstate.Infrastructure --startup-project src/SmartEstate.API`
+- The `[ERR] Failed executing DbCommand SELECT from __EFMigrationsHistory` log on first `database update` is **normal** — EF Core checks if the history table exists, gets an error (it doesn't), then creates it. Confirmed by "Done" at the end.
+- Connection string format for Npgsql: `Host=localhost;Port=5432;Database=smartestate;Username=smartestate;Password=<see .env>`
+
+### AppDbContext — Global Query Filters (CRITICAL)
+- **DO NOT** extract `tenantContext.TenantId` as a local variable in `OnModelCreating`:
+  ```csharp
+  // BUG — captures value at model-build time, stale for all subsequent requests
+  var tenantId = tenantContext.TenantId;
+  builder.Entity<Buyer>().HasQueryFilter(e => e.TenantId == tenantId.Value);
+  ```
+- **CORRECT** — reference the primary-constructor captured field directly:
+  ```csharp
+  builder.Entity<Buyer>().HasQueryFilter(e =>
+      !tenantContext.TenantId.HasValue || e.TenantId == tenantContext.TenantId.Value);
+  ```
+  EF Core re-evaluates the field reference per-query. When `TenantId` is null (Administrator or no HttpContext), the filter is bypassed — all records visible.
+
+### DataSeeder
+- Location: `SmartEstate.Infrastructure/Persistence/DataSeeder.cs`
+- Registered as `AddScoped<DataSeeder>()` in `Infrastructure/DependencyInjection.cs`
+- Invoked in `API/Program.cs` via `CreateAsyncScope()` before `app.Run()`
+- Seeds: all three roles (`AppRoles.All`), then Administrator user from `ADMIN_EMAIL` / `ADMIN_PASSWORD` env vars
+- If env vars are missing → logs warning, skips gracefully (no crash)
+- Admin user always has `TenantId = null`
+
+### Serilog
+- API: `UseSerilog()` on `builder.Host` (IHostBuilder extension)
+- Workers: `AddSerilog()` on `builder.Services` (HostApplicationBuilder doesn't expose IHostBuilder directly)
+- `SensitivePropertyDestructuringPolicy` at `SmartEstate.Infrastructure/Logging/` — only applies to SmartEstate namespace types, redacts password/token/secret/apikey/authorization properties
+- Log files: `logs/smartestate-.log` (API), `logs/smartestate-workers-.log` (Workers). The `logs/` directory is in `.gitignore`.
+
+### Roles & AppRoles
+- `AppRoles` constants are defined in `SmartEstate.Infrastructure.Identity` namespace, same file as `ApplicationRole`: `Infrastructure/Identity/ApplicationRole.cs`
+- `AppRoles.All` is a string array: `[Administrator, AgencyManager, Agent]` — use it for bulk role seeding
+
+### Docker
+- Credentials are in `.env` (gitignored). Copy `.env.example` → `.env` before first run.
+- pgAdmin auto-connects to PostgreSQL via `docker/pgadmin/servers.json` (mounted read-only)
+- ASP.NET Identity tables are prefixed `AspNet` by convention (e.g. `AspNetUsers`, `AspNetRoles`) — keep this for consistency
 - Blazor WASM expects API at the base URL configured in `wwwroot/appsettings.json` — coordinate with Frontend Dev
-- ASP.NET Identity tables are prefixed `asp_net_` by convention — keep this for consistency

@@ -204,6 +204,9 @@ Owner reviews milestone → plans next sprint with Lead Dev
 | 2026-04-22 | MudBlazor | Proven component library, dark/light mode built-in |
 | 2026-04-22 | No SignalR initially | Reduce complexity; email + in-app polling sufficient for MVP |
 | 2026-04-22 | Separate Workers project | Scrapers must run independently of API, different scaling needs |
+| 2026-04-23 | DataSeeder via `CreateAsyncScope()` (not IHostedService) | Runs once at startup, simpler than a full IHostedService for a one-off seed operation |
+| 2026-04-23 | EF Core query filters reference `tenantContext` field directly | Capturing `TenantId` as a local `Guid?` in `OnModelCreating` freezes the value at model-build time; the field reference is re-evaluated per query |
+| 2026-04-23 | Migrations output dir: `Persistence/Migrations` | Keeps migrations co-located with `AppDbContext` in the Infrastructure persistence folder |
 
 ---
 
@@ -213,7 +216,276 @@ Owner reviews milestone → plans next sprint with Lead Dev
 
 | Sprint | Status | Summary |
 |---|---|---|
-| Sprint 0 | Planning | Initial setup — solution structure, auth scaffold, docker, CI |
+| Sprint 0 | In Progress | Foundation — Docker, EF Core migration, Serilog, Blazor layout, CI pipeline |
+| Sprint 1 | Planned | Auth (JWT login), multi-tenancy middleware, admin tenant/user management |
+| Sprint 2 | Planned | Buyer CRUD (backend + frontend) |
+| Sprint 3 | Planned | Property CRUD (backend + frontend) |
+| Sprint 4 | Planned | Gemini AI tagging for buyers and properties |
+| Sprint 5 | Planned | Matching engine + match reports (backend + frontend) |
+| Sprint 6 | Planned | In-app notifications — Phase 1 complete |
+| Sprint 7 | Planned | FSBO scrapers — all 5 portals, Workers project |
+| Sprint 8 | Planned | FSBO classification (Gemini) + lead notifications (in-app + email) — Phase 2 complete |
+| Sprint 9 | Planned | AgencyManager dashboard + agent management |
+| Sprint 10 | Planned | Production readiness — IIS, secrets, migrations, security audit |
+
+---
+
+## Full Sprint Plan
+
+> This is the canonical sprint plan agreed with the Product Owner on 2026-04-23.
+> Lead Dev maintains this. Update issue numbers as they are created. Mark sprints as In Progress / Complete as work progresses.
+> **Critical path:** S0 → S1 → S2+S3 (parallel) → S4 → S5 → S6 → S7 → S8 → S9 → S10
+
+---
+
+### Sprint 0 — Foundation `[In Progress]`
+
+**Goal:** Everything that must be in place before any feature work can begin.
+
+| # | GitHub Issue | Task | Label | Status |
+|---|---|---|---|---|
+| 0.1 | [#13](https://github.com/LazarVujosevic/SmartEstate/issues/13) | Docker Compose — PostgreSQL 16, pgAdmin, n8n | `backend` | ✅ Done |
+| 0.2 | [#14](https://github.com/LazarVujosevic/SmartEstate/issues/14) | EF Core initial migration + Administrator seed (from env vars) | `backend` | ✅ Done |
+| 0.3 | [#15](https://github.com/LazarVujosevic/SmartEstate/issues/15) | Serilog configuration — stdout + rolling file sink, both API and Workers | `backend` | ✅ Done |
+| 0.4 | [#16](https://github.com/LazarVujosevic/SmartEstate/issues/16) | Blazor WASM starter layout — MudBlazor theme, nav drawer, dark/light toggle | `frontend` | Open |
+| 0.5 | [#17](https://github.com/LazarVujosevic/SmartEstate/issues/17) | GitHub Actions CI — build + test on every PR, branch protection on main | `architecture` | ✅ Done |
+
+**Already completed before Sprint 0 issues were created:**
+- Solution structure (all 6 projects scaffolded)
+- Domain entities: `Tenant`, `Buyer`, `Property`, `FsboLead`, `InAppNotification`, `MatchReport`
+- Domain enums: `BuyerReaction`, `FsboLeadStatus`, `PortalSource`, `PropertyStatus`, `PropertyType`
+- `BaseEntity`, `ITenantEntity`, `ValidationBehavior`, `ApiResponse<T>`
+- Application interfaces: `IApplicationDbContext`, `ITenantContext`, `IAITaggingService`, `IEmailService`
+- `AppDbContext` skeleton, `ApplicationUser`, `ApplicationRole`
+- `/health` and `/ping` endpoints (issues #3, #6)
+
+---
+
+### Sprint 1 — Auth & Multi-Tenancy `[Planned]`
+
+**Goal:** No one can do anything without auth. This sprint is a hard blocker for all feature sprints.
+**Depends on:** Sprint 0 complete.
+
+**Backend tasks:**
+| Task | Label |
+|---|---|
+| POST `/auth/login` — ASP.NET Identity + JWT generation (claims: sub, email, role, tenant_id, exp) | `backend` |
+| `TenantMiddleware` — resolves `ITenantContext` from JWT `tenant_id` claim on every request | `backend` |
+| EF Core Global Query Filters for all `ITenantEntity` entities in `AppDbContext` | `backend` |
+| Middleware: block requests from inactive tenants (return 403), except Administrator | `backend` |
+| Admin API: POST `/admin/tenants` — create a new tenant (name, contact, plan) | `backend` |
+| Admin API: POST `/admin/tenants/{id}/users` — create initial AgencyManager user for tenant | `backend` |
+| Admin API: PATCH `/admin/tenants/{id}/activate` — toggle `IsActive` flag | `backend` |
+
+**Frontend tasks:**
+| Task | Label |
+|---|---|
+| Login page — MudBlazor form, JWT stored in localStorage, redirect after login | `frontend` |
+| `JwtAuthStateProvider` — custom `AuthenticationStateProvider`, parses JWT claims | `frontend` |
+| Route guard — `AuthorizeRouteView` + `RedirectToLogin` component for all protected routes | `frontend` |
+| Admin panel — tenant list (MudDataGrid), create tenant form, toggle activation | `frontend` |
+
+---
+
+### Sprint 2 — Buyer Management `[Planned]`
+
+**Goal:** Agents can create and manage buyer profiles with lifestyle descriptions.
+**Depends on:** Sprint 1 complete (auth + tenant middleware required).
+**Can run in parallel with:** Sprint 3.
+
+**Backend tasks:**
+| Task | Label |
+|---|---|
+| POST `/buyers` — create buyer (name, lifestyle description, budget range, preferred locations) | `backend` |
+| GET `/buyers` — paginated list for current tenant | `backend` |
+| GET `/buyers/{id}` — buyer details | `backend` |
+| PUT `/buyers/{id}` — update buyer | `backend` |
+| DELETE `/buyers/{id}` — soft delete (`IsDeleted` flag, filtered by default) | `backend` |
+
+**Frontend tasks:**
+| Task | Label |
+|---|---|
+| Buyer list page — MudDataGrid with pagination, search by name | `frontend` |
+| Buyer create/edit form — modal or dedicated page | `frontend` |
+| Buyer detail page — full profile view | `frontend` |
+
+---
+
+### Sprint 3 — Property Management `[Planned]`
+
+**Goal:** Agents can create and manage property listings with descriptions.
+**Depends on:** Sprint 1 complete.
+**Can run in parallel with:** Sprint 2.
+
+**Backend tasks:**
+| Task | Label |
+|---|---|
+| POST `/properties` — create property (address, type, area, price, description) | `backend` |
+| GET `/properties` — paginated list for current tenant, filterable by `PropertyStatus` | `backend` |
+| GET `/properties/{id}` — property details | `backend` |
+| PUT `/properties/{id}` — update property | `backend` |
+| PATCH `/properties/{id}/status` — change status (Available → UnderContract → Sold) | `backend` |
+| DELETE `/properties/{id}` — soft delete | `backend` |
+
+**Frontend tasks:**
+| Task | Label |
+|---|---|
+| Property list page — MudDataGrid, status filter chips | `frontend` |
+| Property create/edit form | `frontend` |
+| Property detail page | `frontend` |
+
+---
+
+### Sprint 4 — AI Tagging via Gemini `[Planned]`
+
+**Goal:** Gemini analyzes buyer descriptions and property descriptions, assigns semantic tags. Core of Phase 1.
+**Depends on:** Sprint 2 and Sprint 3 complete.
+
+**Backend tasks:**
+| Task | Label |
+|---|---|
+| `GeminiTaggingService` — implements `IAITaggingService` using Google Generative AI SDK | `backend` |
+| MediatR Command: `TagBuyerCommand` — sends buyer description to Gemini, persists returned tags on `Buyer` | `backend` |
+| MediatR Command: `TagPropertyCommand` — sends property description to Gemini, persists tags on `Property` | `backend` |
+| Auto-trigger tagging on Buyer create/update and Property create/update (MediatR pipeline or domain event) | `backend` |
+| Exponential backoff retry for Gemini 429 rate-limit errors | `backend` |
+| Debug endpoints: GET `/buyers/{id}/tags`, GET `/properties/{id}/tags` | `backend` |
+
+> **Architecture note:** Tags stored as JSON column on the entity for MVP simplicity. Each tag has a `name` and `weight` (float). Gemini prompt must return structured JSON.
+
+---
+
+### Sprint 5 — Matching Engine `[Planned]`
+
+**Goal:** System proposes which buyers match which properties based on AI tags.
+**Depends on:** Sprint 4 complete.
+
+**Backend tasks:**
+| Task | Label |
+|---|---|
+| `MatchingService` — computes similarity score between buyer tags and property tags (weighted Jaccard) | `backend` |
+| GET `/properties/{id}/matches` — ranked list of buyers matching that property (with score) | `backend` |
+| GET `/buyers/{id}/matches` — ranked list of properties matching that buyer (with score) | `backend` |
+| POST `/match-reports` — agent logs buyer reaction (`BuyerReaction` enum: Interested, NotInterested, Visited, Offered) | `backend` |
+| GET `/match-reports` — list of all match reports for tenant | `backend` |
+| Feedback loop: periodically batch-send reaction history to Gemini to refine buyer/property tags | `backend` |
+
+**Frontend tasks:**
+| Task | Label |
+|---|---|
+| Match page for property — ranked buyer list with score and reaction action | `frontend` |
+| Match page for buyer — ranked property list | `frontend` |
+| Log reaction form — agent selects reaction after showing property to buyer | `frontend` |
+| Match reports list — AgencyManager view of all reactions | `frontend` |
+
+---
+
+### Sprint 6 — In-App Notifications `[Planned]`
+
+**Goal:** Users receive in-app notifications for relevant events. Completes Phase 1.
+**Depends on:** Sprint 5 complete.
+
+**Backend tasks:**
+| Task | Label |
+|---|---|
+| `NotificationService` — creates `InAppNotification` records (type, message, targetUserId, isRead, createdAt) | `backend` |
+| GET `/notifications` — list of unread notifications for currently authenticated user | `backend` |
+| PATCH `/notifications/{id}/read` — mark notification as read | `backend` |
+| Auto-create notification when a match score exceeds configured threshold | `backend` |
+
+**Frontend tasks:**
+| Task | Label |
+|---|---|
+| Notification bell icon in app bar with unread badge count | `frontend` |
+| Notification dropdown panel — list with mark-as-read action | `frontend` |
+| Polling mechanism — GET `/notifications` every 60 seconds | `frontend` |
+
+> **Phase 1 complete after this sprint.** AgencyManager sees everything, Agents manage buyers/properties, AI tags and matches, notifications fire.
+
+---
+
+### Sprint 7 — FSBO Scrapers `[Planned]`
+
+**Goal:** Workers project continuously scrapes 5 real estate portals and stores raw listings.
+**Depends on:** Sprint 0 complete (Workers infrastructure). Can be developed in parallel with S5/S6.
+
+**Backend tasks:**
+| Task | Label |
+|---|---|
+| `ScraperWorkerBase` — abstract base with `PeriodicTimer` loop, error handling, Serilog logging, `CancellationToken` | `backend` |
+| `FsboLeadRepository` — persist scraped listings, duplicate detection by external URL | `backend` |
+| Scraper: **4zida.rs** — HttpClient + HtmlAgilityPack, extracts title, price, location, URL, description | `backend` |
+| Scraper: **halooglasi.com** | `backend` |
+| Scraper: **nadjidom.com** | `backend` |
+| Scraper: **kupujemprodajem.com** | `backend` |
+| Scraper: **nekretnine.rs** | `backend` |
+| Graceful degradation — if scraper throws (HTML changed), log full context + continue, never crash worker | `backend` |
+
+> **Architecture note:** Each portal = separate `IHostedService`. Scraping interval configured in `appsettings.json` per scraper. Raw listing data is stored before AI classification to allow replay if classification fails.
+
+---
+
+### Sprint 8 — FSBO Classification & Lead Notifications `[Planned]`
+
+**Goal:** Gemini classifies scraped listings as FSBO or agency-posted. Agencies are notified of FSBOs. Completes Phase 2.
+**Depends on:** Sprint 7 complete, Sprint 6 complete (notification infrastructure).
+
+**Backend tasks:**
+| Task | Label |
+|---|---|
+| `FsboClassificationService` — batch sends scraped listings to Gemini, classifies agency vs FSBO | `backend` |
+| Batch classification logic — collect N unclassified listings, send in one Gemini call (avoid rate limits) | `backend` |
+| On FSBO detection: create `InAppNotification` for all active AgencyManagers across all tenants | `backend` |
+| Email notification via MailKit — send FSBO alert email to AgencyManager email address | `backend` |
+| GET `/fsbo-leads` — paginated list of FSBO leads for tenant, filterable by `FsboLeadStatus` | `backend` |
+| PATCH `/fsbo-leads/{id}/status` — agent updates status (New → Contacted → Converted / Dismissed) | `backend` |
+
+**Frontend tasks:**
+| Task | Label |
+|---|---|
+| FSBO Leads list page — MudDataGrid with status filter, urgency sorting by detected date | `frontend` |
+| FSBO Lead detail page — listing info, portal link, status change action | `frontend` |
+| Email notification settings form for AgencyManager (SMTP config per tenant) | `frontend` |
+
+> **Phase 2 complete after this sprint.**
+
+---
+
+### Sprint 9 — AgencyManager Dashboard `[Planned]`
+
+**Goal:** AgencyManager has a unified overview of agency activity and KPIs.
+**Depends on:** Sprint 8 complete.
+
+**Backend tasks:**
+| Task | Label |
+|---|---|
+| GET `/dashboard/summary` — KPIs: active buyers, active properties, matches this week, new FSBO leads | `backend` |
+| GET `/dashboard/agent-activity` — per-agent breakdown: entries created, reactions logged | `backend` |
+
+**Frontend tasks:**
+| Task | Label |
+|---|---|
+| AgencyManager dashboard page — MudCard KPI tiles, recent activity feed | `frontend` |
+| Agent management page — list agents, invite by email, deactivate | `frontend` |
+| Agency settings page — name, contact info, notification preferences | `frontend` |
+
+---
+
+### Sprint 10 — Production Readiness `[Planned]`
+
+**Goal:** Safe deployment to Windows Server. Nothing breaks in production.
+**Depends on:** All previous sprints complete.
+
+| Task | Label |
+|---|---|
+| Environment variable configuration for all secrets (connection string, JWT key, Gemini API key, SMTP) | `backend` |
+| EF Core migration apply script + runbook documentation for production deploys | `architecture` |
+| IIS `web.config` for API (reverse proxy, HTTPS redirect) | `backend` |
+| Blazor WASM publish as static files under IIS | `backend` |
+| Serilog file sink configuration for production (log rotation, 30-day retention) | `backend` |
+| Database index audit — review all queries for N+1 issues, add missing indexes | `backend` |
+| Health check endpoint upgrade — verify DB connection, not just ping | `backend` |
+| Security audit — CORS policy, HTTPS enforce, security response headers, no secrets in code | `backend` |
 
 ---
 
@@ -224,3 +496,7 @@ Owner reviews milestone → plans next sprint with Lead Dev
 - `Administrator` role is seeded on first run — credentials must be set via environment variable, not hardcoded
 - All database migrations must be applied manually (no auto-migration on startup in production)
 - Windows Server production deployment: use IIS reverse proxy for API + publish Blazor WASM as static files
+- `Serilog.Sinks.File` must be version `7.0.0` — `Serilog.AspNetCore 10.0.0` has a transitive dependency on `>= 7.0.0`; using 6.0.0 causes NU1605 build error
+- `Microsoft.EntityFrameworkCore.Design` must be in the **startup project** (API), not only in Infrastructure — EF Core CLI tools require it on the startup project to generate migrations
+- `dotnet-ef` global tool must be installed before running any migration commands: `dotnet tool install --global dotnet-ef`
+- Docker Compose credentials are in `.env` (gitignored) — copy `.env.example` to `.env` before first `docker compose up -d`
