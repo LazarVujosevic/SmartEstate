@@ -197,7 +197,7 @@ Lead Dev reviews, approves, merges to main
 |---|---|---|
 | Sprint 0 | ✅ Complete | Foundation — Docker, EF Core migration, Serilog, Blazor layout, CI pipeline |
 | Sprint 1 | ✅ Complete | Auth (JWT login), multi-tenancy middleware, admin tenant/user management |
-| Sprint 2 | 🔄 In Progress | Buyer CRUD — backend complete (#45–#48 ✅), frontend pending (#49–#51) |
+| Sprint 2 | ✅ Complete | Buyer CRUD (backend + frontend) — issues #45–#51, PRs #52–#58 |
 | Sprint 3 | Planned | Property CRUD (backend + frontend) |
 | Sprint 4 | Planned | Gemini AI tagging for buyers and properties |
 | Sprint 5 | Planned | Matching engine + match reports |

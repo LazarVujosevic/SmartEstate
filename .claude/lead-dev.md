@@ -235,9 +235,13 @@ When starting a new sprint:
 4. Assign correct labels (`backend`, `frontend`, `architecture`) per the sprint plan
 5. Check Sprint Plan notes for any "already done" items before creating issues — avoid duplicating work
 
-**Current state (as of 2026-04-23):** Sprint 0 ✅ Complete. Sprint 1 ✅ Complete. **Sprint 2 (Buyers) and Sprint 3 (Properties) are next and can run in parallel.** Lead onboarding check confirmed `main` branch, no open GitHub PRs, and no open GitHub issues. Local `dotnet build SmartEstate.slnx` reached compile/copy stage but failed because Visual Studio and a running `SmartEstate.API` process had output DLLs locked; this is an environment lock, not a source compile error. NU1903 warnings remain tied to the known unused Domain Identity package cleanup.
+**Current state (as of 2026-04-24):** Sprint 0 ✅ Complete. Sprint 1 ✅ Complete. Sprint 2 ✅ Complete — all 7 issues merged (PRs #52–#58). **Sprint 3 (Properties) is next.**
 
-### Sprint 2 Planning Notes — Buyer Management (2026-04-23)
+**Sprint 2 backend review notes:**
+- PR #52 (#45): `TenantId` removed from `BuyerDto` (security), `defaultValueSql: "ARRAY[]::text[]"` added for `PreferredLocations` migration (safety)
+- PRs #53–#55 (#46–#48): merged in strict order (each built on previous `BuyersController.cs` diff). All clean — `UpdatedAt` auto-handled by `AppDbContext.SaveChangesAsync`, `ClaimTypes.NameIdentifier` acceptable as BCL constant.
+
+### Sprint 2 Planning Notes — Buyer Management (2026-04-24)
 
 Sprint 2 is planned as 7 atomic issues: 4 backend, 3 frontend. The canonical detailed plan is in `CLAUDE.md` under "Sprint 2 — Buyer Management".
 

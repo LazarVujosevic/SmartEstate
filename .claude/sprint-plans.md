@@ -48,7 +48,7 @@
 
 ---
 
-## Sprint 2 — Buyer Management `[🔄 In Progress]`
+## Sprint 2 — Buyer Management `[✅ Complete]`
 
 **Goal:** Agents can create and manage buyer profiles with lifestyle descriptions.
 **Depends on:** Sprint 1 complete ✅
@@ -61,9 +61,9 @@
 | 2.2 | [#46](https://github.com/LazarVujosevic/SmartEstate/issues/46) | POST `/buyers` + GET `/buyers` paginated list | `backend` | ✅ Done (PR #53) |
 | 2.3 | [#47](https://github.com/LazarVujosevic/SmartEstate/issues/47) | GET `/buyers/{id}` + PUT `/buyers/{id}` | `backend` | ✅ Done (PR #54) |
 | 2.4 | [#48](https://github.com/LazarVujosevic/SmartEstate/issues/48) | DELETE `/buyers/{id}` soft delete | `backend` | ✅ Done (PR #55) |
-| 2.5 | [#49](https://github.com/LazarVujosevic/SmartEstate/issues/49) | Buyer models/service + navigation entry | `frontend` | 🔄 PR #56 (awaiting review) |
-| 2.6 | [#50](https://github.com/LazarVujosevic/SmartEstate/issues/50) | Buyer list page with MudDataGrid, pagination, search | `frontend` | 🔄 PR #57 (awaiting review) |
-| 2.7 | [#51](https://github.com/LazarVujosevic/SmartEstate/issues/51) | Buyer create/edit/detail UI | `frontend` | 🔄 PR #58 (awaiting review) |
+| 2.5 | [#49](https://github.com/LazarVujosevic/SmartEstate/issues/49) | Buyer models/service + navigation entry | `frontend` | ✅ Done (PR #56) |
+| 2.6 | [#50](https://github.com/LazarVujosevic/SmartEstate/issues/50) | Buyer list page with MudDataGrid, pagination, search | `frontend` | ✅ Done (PR #57) |
+| 2.7 | [#51](https://github.com/LazarVujosevic/SmartEstate/issues/51) | Buyer create/edit/detail UI | `frontend` | ✅ Done (PR #58) |
 
 ### Dependency order
 - Backend: #45 first → then #46, #47, #48 in parallel
