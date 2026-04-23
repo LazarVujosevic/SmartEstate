@@ -76,6 +76,7 @@ app.UseCors("BlazorWasm");
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<TenantMiddleware>();
+app.UseMiddleware<InactiveTenantMiddleware>();
 app.MapControllers();
 
 app.Run();
