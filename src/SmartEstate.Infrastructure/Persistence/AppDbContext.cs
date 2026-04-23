@@ -21,15 +21,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
         base.OnModelCreating(builder);
         builder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
 
-        // Global tenant filters — automatically scope all tenant queries
-        var tenantId = tenantContext.TenantId;
-        if (tenantId.HasValue)
-        {
-            builder.Entity<Buyer>().HasQueryFilter(e => e.TenantId == tenantId.Value);
-            builder.Entity<Property>().HasQueryFilter(e => e.TenantId == tenantId.Value);
-            builder.Entity<MatchReport>().HasQueryFilter(e => e.TenantId == tenantId.Value);
-            builder.Entity<InAppNotification>().HasQueryFilter(e => e.TenantId == tenantId.Value);
-        }
+        // tenantContext is a primary-constructor-captured field, evaluated per query.
+        // When TenantId is null (Administrator or no HTTP context) the filter is bypassed.
+        builder.Entity<Buyer>().HasQueryFilter(e =>
+            !tenantContext.TenantId.HasValue || e.TenantId == tenantContext.TenantId.Value);
+        builder.Entity<Property>().HasQueryFilter(e =>
+            !tenantContext.TenantId.HasValue || e.TenantId == tenantContext.TenantId.Value);
+        builder.Entity<MatchReport>().HasQueryFilter(e =>
+            !tenantContext.TenantId.HasValue || e.TenantId == tenantContext.TenantId.Value);
+        builder.Entity<InAppNotification>().HasQueryFilter(e =>
+            !tenantContext.TenantId.HasValue || e.TenantId == tenantContext.TenantId.Value);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

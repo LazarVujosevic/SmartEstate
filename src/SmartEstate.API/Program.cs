@@ -5,6 +5,7 @@ using Serilog;
 using SmartEstate.Application;
 using SmartEstate.Infrastructure;
 using SmartEstate.Infrastructure.Logging;
+using SmartEstate.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -51,6 +52,11 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod()));
 
 var app = builder.Build();
+
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    await scope.ServiceProvider.GetRequiredService<DataSeeder>().SeedAsync();
+}
 
 if (app.Environment.IsDevelopment())
 {
