@@ -216,7 +216,7 @@ Owner reviews milestone → plans next sprint with Lead Dev
 
 | Sprint | Status | Summary |
 |---|---|---|
-| Sprint 0 | In Progress | Foundation — Docker, EF Core migration, Serilog, Blazor layout, CI pipeline |
+| Sprint 0 | ✅ Complete | Foundation — Docker, EF Core migration, Serilog, Blazor layout, CI pipeline |
 | Sprint 1 | Planned | Auth (JWT login), multi-tenancy middleware, admin tenant/user management |
 | Sprint 2 | Planned | Buyer CRUD (backend + frontend) |
 | Sprint 3 | Planned | Property CRUD (backend + frontend) |
@@ -238,7 +238,7 @@ Owner reviews milestone → plans next sprint with Lead Dev
 
 ---
 
-### Sprint 0 — Foundation `[In Progress]`
+### Sprint 0 — Foundation `[✅ Complete]`
 
 **Goal:** Everything that must be in place before any feature work can begin.
 
@@ -247,7 +247,7 @@ Owner reviews milestone → plans next sprint with Lead Dev
 | 0.1 | [#13](https://github.com/LazarVujosevic/SmartEstate/issues/13) | Docker Compose — PostgreSQL 16, pgAdmin, n8n | `backend` | ✅ Done |
 | 0.2 | [#14](https://github.com/LazarVujosevic/SmartEstate/issues/14) | EF Core initial migration + Administrator seed (from env vars) | `backend` | ✅ Done |
 | 0.3 | [#15](https://github.com/LazarVujosevic/SmartEstate/issues/15) | Serilog configuration — stdout + rolling file sink, both API and Workers | `backend` | ✅ Done |
-| 0.4 | [#16](https://github.com/LazarVujosevic/SmartEstate/issues/16) | Blazor WASM starter layout — MudBlazor theme, nav drawer, dark/light toggle | `frontend` | Open |
+| 0.4 | [#16](https://github.com/LazarVujosevic/SmartEstate/issues/16) | Blazor WASM starter layout — MudBlazor theme, nav drawer, dark/light toggle | `frontend` | ✅ Done |
 | 0.5 | [#17](https://github.com/LazarVujosevic/SmartEstate/issues/17) | GitHub Actions CI — build + test on every PR, branch protection on main | `architecture` | ✅ Done |
 
 **Already completed before Sprint 0 issues were created:**
@@ -261,10 +261,12 @@ Owner reviews milestone → plans next sprint with Lead Dev
 
 ---
 
-### Sprint 1 — Auth & Multi-Tenancy `[Planned]`
+### Sprint 1 — Auth & Multi-Tenancy `[Planned — Next]`
 
 **Goal:** No one can do anything without auth. This sprint is a hard blocker for all feature sprints.
-**Depends on:** Sprint 0 complete.
+**Depends on:** Sprint 0 complete ✅.
+
+> **Note for Lead Dev:** When creating Sprint 1 GitHub Issues, skip "Route guard — AuthorizeRouteView + RedirectToLogin" — already implemented in PR #22 (Sprint 0 Frontend). The Blazor WASM routing infrastructure is done; Sprint 1 Frontend only needs Login page + JwtAuthStateProvider.
 
 **Backend tasks:**
 | Task | Label |
@@ -281,8 +283,8 @@ Owner reviews milestone → plans next sprint with Lead Dev
 | Task | Label |
 |---|---|
 | Login page — MudBlazor form, JWT stored in localStorage, redirect after login | `frontend` |
-| `JwtAuthStateProvider` — custom `AuthenticationStateProvider`, parses JWT claims | `frontend` |
-| Route guard — `AuthorizeRouteView` + `RedirectToLogin` component for all protected routes | `frontend` |
+| `JwtAuthStateProvider` — custom `AuthenticationStateProvider`, parses JWT claims from stored JWT | `frontend` |
+| Fix `_isDarkMode` field initializer in `MainLayout.razor` — change default from `true` to `false` to avoid dark→light flash on first load | `frontend` |
 | Admin panel — tenant list (MudDataGrid), create tenant form, toggle activation | `frontend` |
 
 ---
@@ -491,12 +493,32 @@ Owner reviews milestone → plans next sprint with Lead Dev
 
 ## Known Constraints & Important Notes
 
-- Scraping portals (4zida, halooglasi, etc.) may change their HTML structure — scrapers must be designed to fail gracefully and alert via logs, not crash the worker
-- Gemini API has rate limits on free tier — batch AI requests where possible, avoid per-request calls in loops
-- `Administrator` role is seeded on first run — credentials must be set via environment variable, not hardcoded
-- All database migrations must be applied manually (no auto-migration on startup in production)
-- Windows Server production deployment: use IIS reverse proxy for API + publish Blazor WASM as static files
+### Architecture
+- `FsboLead` entity has **no `TenantId`** — it is a global entity (scraped once, shared across all agencies). Sprint 7/8 must resolve how `GET /fsbo-leads` is scoped per tenant: either via an `InAppNotification` reference, or a `TenantFsboLead` junction table. Create an `architecture` issue when starting Sprint 7.
+- EF Core Global Query Filters must reference the `ITenantContext` service field directly, not a captured `Guid?` local variable — captured locals are frozen at model-build time; field references are re-evaluated per query.
+- `DataSeeder` is idempotent and runs on every API startup — it checks existence before creating. Safe to re-run.
+
+### Backend
 - `Serilog.Sinks.File` must be version `7.0.0` — `Serilog.AspNetCore 10.0.0` has a transitive dependency on `>= 7.0.0`; using 6.0.0 causes NU1605 build error
 - `Microsoft.EntityFrameworkCore.Design` must be in the **startup project** (API), not only in Infrastructure — EF Core CLI tools require it on the startup project to generate migrations
 - `dotnet-ef` global tool must be installed before running any migration commands: `dotnet tool install --global dotnet-ef`
+- Migration command: `dotnet ef migrations add <Name> --project src/SmartEstate.Infrastructure --startup-project src/SmartEstate.API`
+- All database migrations must be applied manually (no auto-migration on startup in production)
+- `Administrator` role is seeded on first run — credentials read from `ADMIN_EMAIL` / `ADMIN_PASSWORD` env vars (or `appsettings.Development.json`); if not set, seeder skips with a warning log
+- CORS policy in API is named `"BlazorWasm"` — configured for `https://localhost:7002` in dev; update `AllowedOrigins` in `appsettings.json` for prod
+- Scraping portals (4zida, halooglasi, etc.) may change their HTML structure — scrapers must fail gracefully, log full context, and continue; never crash the worker
+
+### Frontend
 - Docker Compose credentials are in `.env` (gitignored) — copy `.env.example` to `.env` before first `docker compose up -d`
+- `wwwroot/appsettings.Development.json` is gitignored — only `wwwroot/appsettings.json` is tracked; configure local overrides manually after clone
+- MudBlazor 9.x: `MudThemeProvider.GetSystemPreference()` no longer exists — do not use it; default to `false` (light mode) if no localStorage value
+- MudBlazor 9.x: required providers in layout are `MudThemeProvider`, `MudPopoverProvider`, `MudDialogProvider`, `MudSnackbarProvider` — all four must be present or dropdowns/dialogs/snackbars will silently fail
+- Theme preference is stored in `localStorage` under key `smartestate_dark_mode` (bool) — read in `OnAfterRenderAsync`, not `OnInitializedAsync` (localStorage is unavailable during prerender)
+- `AuthorizeRouteView` + `RedirectToLogin` are already wired in `App.razor` — Sprint 1 Frontend only needs to register `JwtAuthStateProvider` and build the Login page
+- Gemini API has rate limits on free tier — batch AI requests where possible, avoid per-request calls in loops
+- Windows Server production deployment: use IIS reverse proxy for API + publish Blazor WASM as static files
+
+### CI / GitHub
+- GitHub Actions workflow: `.github/workflows/ci.yml` — triggers on PR to `main`, job name is `Build & Test`
+- Branch protection on `main` requires `Build & Test` status check to pass before merge
+- GitHub does not allow self-approve on PRs — Lead Dev uses `gh pr merge --admin` when CI hasn't run yet on infrastructure/arch PRs
