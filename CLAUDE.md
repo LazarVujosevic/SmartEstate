@@ -223,7 +223,7 @@ Owner reviews milestone → plans next sprint with Lead Dev
 | Sprint | Status | Summary |
 |---|---|---|
 | Sprint 0 | ✅ Complete | Foundation — Docker, EF Core migration, Serilog, Blazor layout, CI pipeline |
-| Sprint 1 | 🔄 In Progress | Auth (JWT login), multi-tenancy middleware, admin tenant/user management |
+| Sprint 1 | ✅ Complete | Auth (JWT login), multi-tenancy middleware, admin tenant/user management |
 | Sprint 2 | Planned | Buyer CRUD (backend + frontend) |
 | Sprint 3 | Planned | Property CRUD (backend + frontend) |
 | Sprint 4 | Planned | Gemini AI tagging for buyers and properties |
@@ -267,7 +267,7 @@ Owner reviews milestone → plans next sprint with Lead Dev
 
 ---
 
-### Sprint 1 — Auth & Multi-Tenancy `[🔄 In Progress]`
+### Sprint 1 — Auth & Multi-Tenancy `[✅ Complete]`
 
 **Goal:** No one can do anything without auth. This sprint is a hard blocker for all feature sprints.
 **Depends on:** Sprint 0 complete ✅.
@@ -505,6 +505,7 @@ Owner reviews milestone → plans next sprint with Lead Dev
 - `DataSeeder` is idempotent and runs on every API startup — it checks existence before creating. Safe to re-run.
 
 ### Backend
+- `SmartEstate.Domain` must not reference ASP.NET/Identity packages. Current `Microsoft.AspNetCore.Identity 2.3.9` reference appears unused, violates the zero-dependency Domain rule, and is the likely source of NU1903 `System.Security.Cryptography.Xml 8.0.2` vulnerability warnings. Remove it in a dedicated cleanup PR.
 - `Serilog.Sinks.File` must be version `7.0.0` — `Serilog.AspNetCore 10.0.0` has a transitive dependency on `>= 7.0.0`; using 6.0.0 causes NU1605 build error
 - `Microsoft.EntityFrameworkCore.Design` must be in the **startup project** (API), not only in Infrastructure — EF Core CLI tools require it on the startup project to generate migrations
 - `dotnet-ef` global tool must be installed before running any migration commands: `dotnet tool install --global dotnet-ef`

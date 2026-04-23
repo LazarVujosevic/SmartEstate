@@ -170,7 +170,7 @@ All 5 issues merged: #13 (Docker), #14 (EF Core migration), #15 (Serilog), #16 (
 - `_isDarkMode = true` field initializer in `MainLayout.razor` inconsistent with `stored ?? false` default — causes dark→light flash on first load. Add as Sprint 1 Frontend task.
 - `AuthorizeRouteView` + `RedirectToLogin` already done — skip from Sprint 1 Frontend issues
 
-### Sprint 1 — 🔄 In Progress (2026-04-23)
+### Sprint 1 — ✅ Complete (2026-04-23)
 
 GitHub Issues created: #23–#33 (11 issues total: 7 backend, 4 frontend)
 
@@ -179,29 +179,36 @@ GitHub Issues created: #23–#33 (11 issues total: 7 backend, 4 frontend)
 |---|---|---|---|
 | #23 | POST /auth/login | ✅ Merged | PR #34 |
 | #24 | TenantMiddleware | ✅ Merged | PR #35 |
-| #25 | EF Core Global Query Filters | 🔲 Open | — |
-| #26 | Inactive tenant 403 middleware | 🔲 Open | — |
+| #25 | EF Core Global Query Filters | ✅ Merged | PR #40 |
+| #26 | Inactive tenant 403 middleware | ✅ Merged | PR #37 |
 | #27 | POST /admin/tenants | ✅ Merged | PR #36 |
-| #28 | POST /admin/tenants/{id}/users | 🔲 Open | — |
-| #29 | PATCH /admin/tenants/{id}/activate | 🔲 Open | — |
+| #28 | POST /admin/tenants/{id}/users | ✅ Merged | PR #38 |
+| #29 | PATCH /admin/tenants/{id}/activate | ✅ Merged | PR #39 |
 
 **Frontend progress:**
 | Issue | Task | Status | PR |
 |---|---|---|---|
-| #30 | JwtAuthStateProvider | 🔲 Open | — |
-| #31 | Login page | 🔲 Open | — |
-| #32 | Fix _isDarkMode initializer | 🔲 Open | — |
-| #33 | Admin panel (tenant management) | 🔲 Open | — |
+| #30 | JwtAuthStateProvider | ✅ Merged | PR #42 |
+| #31 | Login page | ✅ Merged | PR #43 |
+| #32 | Fix _isDarkMode initializer | ✅ Merged | PR #41 |
+| #33 | Admin panel (tenant management) | ✅ Merged | PR #44 |
 
 **Review notes from merged PRs:**
 - PR #34: `Problem()` fallback in controllers → must be `StatusCode(500, ApiResponse.Fail(...))`. Middleware order: `UseSerilogRequestLogging` before `UseExceptionHandler`.
 - PR #35: `TenantContext` refactored to settable POCO — good architectural call. Double-registration pattern for `TenantContext` is the established pattern.
 - PR #36: `CreatedAtAction(nameof(Create), ...)` points to POST, not GET — acceptable now, update when GET endpoint is added. Tenant name duplicate check is case-sensitive.
+- PR #44: Code review passed and covered #33 acceptance criteria. GitHub `Build & Test` remained red with missing logs/empty steps, but local Debug build passed; merged with admin override per owner instruction.
+
+**Sprint 1 retrospective:**
+- All auth, tenancy, inactive-tenant blocking, admin tenant/user management, and admin frontend tasks are merged.
+- Sprint 2 (Buyers) and Sprint 3 (Properties) are now unblocked and can be planned/run in parallel.
+- Follow-up cleanup: remove unused `Microsoft.AspNetCore.Identity 2.3.9` from `SmartEstate.Domain.csproj`; Domain should remain dependency-free and this package likely causes current NU1903 warnings.
 
 ---
 
 ## Architecture Notes & Discoveries
 
+- Domain project should remain dependency-free. `SmartEstate.Domain.csproj` currently references `Microsoft.AspNetCore.Identity 2.3.9`, but no Domain code uses Identity; this is an architecture cleanup item and likely causes the current `System.Security.Cryptography.Xml 8.0.2` NU1903 warnings during build.
 - Gemini API: Use `GenerativeModel` from Google.Generative.AI SDK. Batch requests to avoid rate limits on free tier.
 - Blazor WASM auth: Use `AuthenticationStateProvider` + stored JWT in localStorage (via Blazored.LocalStorage)
 - EF Core multi-tenancy: Register `ITenantContext` as `IHttpContextAccessor`-dependent scoped service; inject into `AppDbContext` primary constructor. Filter pattern: `!tenantContext.TenantId.HasValue || e.TenantId == tenantContext.TenantId.Value` — never capture `TenantId` as a local variable in `OnModelCreating`.
@@ -228,12 +235,7 @@ When starting a new sprint:
 4. Assign correct labels (`backend`, `frontend`, `architecture`) per the sprint plan
 5. Check Sprint Plan notes for any "already done" items before creating issues — avoid duplicating work
 
-**Current state (as of 2026-04-23):** Sprint 0 ✅ Complete. **Sprint 1 is next.**
-
-Sprint 1 issue creation checklist:
-- ✅ Skip "AuthorizeRouteView + RedirectToLogin" — already done in PR #22
-- ✅ Add "Fix `_isDarkMode` field initializer in MainLayout" as a Frontend task
-- Create all backend auth issues first (owner runs backend session before frontend)
+**Current state (as of 2026-04-23):** Sprint 0 ✅ Complete. Sprint 1 ✅ Complete. **Sprint 2 (Buyers) and Sprint 3 (Properties) are next and can run in parallel.**
 
 ## PR Review Process Notes
 
