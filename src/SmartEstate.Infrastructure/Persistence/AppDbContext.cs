@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using SmartEstate.Application.Common.Interfaces;
+using SmartEstate.Domain.Common;
 using SmartEstate.Domain.Entities;
 using SmartEstate.Infrastructure.Identity;
 
@@ -21,21 +22,21 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
         base.OnModelCreating(builder);
         builder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
 
-        // tenantContext is a primary-constructor-captured field, evaluated per query.
+        // tenantContext is a primary-constructor-captured field, re-evaluated per query.
         // When TenantId is null (Administrator or no HTTP context) the filter is bypassed.
-        builder.Entity<Buyer>().HasQueryFilter(e =>
-            !tenantContext.TenantId.HasValue || e.TenantId == tenantContext.TenantId.Value);
-        builder.Entity<Property>().HasQueryFilter(e =>
-            !tenantContext.TenantId.HasValue || e.TenantId == tenantContext.TenantId.Value);
-        builder.Entity<MatchReport>().HasQueryFilter(e =>
-            !tenantContext.TenantId.HasValue || e.TenantId == tenantContext.TenantId.Value);
-        builder.Entity<InAppNotification>().HasQueryFilter(e =>
-            !tenantContext.TenantId.HasValue || e.TenantId == tenantContext.TenantId.Value);
+        ApplyTenantFilter<Buyer>(builder);
+        ApplyTenantFilter<Property>(builder);
+        ApplyTenantFilter<MatchReport>(builder);
+        ApplyTenantFilter<InAppNotification>(builder);
     }
+
+    private void ApplyTenantFilter<T>(ModelBuilder builder) where T : BaseEntity, ITenantEntity
+        => builder.Entity<T>().HasQueryFilter(e =>
+            !tenantContext.TenantId.HasValue || e.TenantId == tenantContext.TenantId.Value);
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        foreach (var entry in ChangeTracker.Entries<Domain.Common.BaseEntity>())
+        foreach (var entry in ChangeTracker.Entries<BaseEntity>())
         {
             if (entry.State == EntityState.Modified)
                 entry.Entity.UpdatedAt = DateTime.UtcNow;
