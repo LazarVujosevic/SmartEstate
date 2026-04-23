@@ -312,6 +312,16 @@ PR description must include:
 - Always check email uniqueness with `FindByEmailAsync` **before** calling `CreateAsync` to distinguish 409 (duplicate) from 400 (password policy)
 - `Tenant.Plan` is `string?` — added via migration `AddTenantPlan` (20260423...); validator enforces `NotEmpty()` at the API boundary so stored value is never empty string
 
+### Buyer CRUD (Sprint 2)
+- `ISoftDeletable` interface at `Domain/Common/ISoftDeletable.cs` — `Buyer` implements it; `Property` will follow in Sprint 3
+- `AppDbContext`: EF Core allows only **one** `HasQueryFilter` per entity — `Buyer` uses an inline combined lambda `(tenant filter) && !e.IsDeleted`; do NOT call `ApplyTenantFilter<Buyer>` and then override with a second call
+- `AssignedAgentId` extracted in controller via `User.FindFirstValue(ClaimTypes.NameIdentifier)` — passed into command, never from request body
+- `PreferredLocations` migration column requires `defaultValueSql: "ARRAY[]::text[]"` — PostgreSQL rejects NOT NULL column addition on a table with existing rows without a default
+- `DeleteBuyerCommand` returns `ErrorOr<Deleted>` with `Result.Deleted` — matches ErrorOr library pattern for void success results
+- `BuyerDto` must NOT expose `TenantId` — internal multi-tenancy concern, never crosses API boundary
+- Stacked PRs (when multiple issues touch same file): set base branch to previous feature branch; Lead Dev changes base to `main` before merging each one in order
+- `GET /api/buyers` search is LINQ `.ToLower().Contains()` — translated to PostgreSQL `ILIKE`-equivalent by Npgsql; no manual `EF.Functions.ILike` needed for simple contains
+
 ### Docker
 - Credentials are in `.env` (gitignored). Copy `.env.example` → `.env` before first run.
 - pgAdmin auto-connects to PostgreSQL via `docker/pgadmin/servers.json` (mounted read-only)
