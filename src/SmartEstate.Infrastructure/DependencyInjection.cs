@@ -28,6 +28,7 @@ public static class DependencyInjection
 
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<AppDbContext>());
         services.AddScoped<DataSeeder>();
+        services.AddMemoryCache();
 
         services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
             {
