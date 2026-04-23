@@ -293,8 +293,22 @@ PR description must include:
 
 ### Admin Controllers (Sprint 1)
 - Admin controllers live in `API/Controllers/`, route prefix `api/admin/...`, with `[Authorize(Roles = AppRoles.Administrator)]` at controller class level
+- Shared `private IActionResult MapErrors(List<Error> errors)` helper on each admin controller — maps `NotFound → 404`, `Conflict → 409`, `Validation → 400` (all messages in `ApiResponse.Errors[]`), `other → 500`
 - Use `CreatedAtAction(nameof(ActionName), new { id = dto.Id }, body)` for 201 responses — when a GET endpoint is added later, update the action name reference
 - Duplicate-check queries (e.g. tenant name uniqueness) use `==` which is case-sensitive in PostgreSQL — for user-facing uniqueness, consider `EF.Functions.ILike` or normalizing to lowercase
+- Request body records (route param + body split) go in `API/Models/Requests/` — one file per record
+
+### Inactive Tenant & Cache (Sprint 1)
+- `InactiveTenantMiddleware` (`Infrastructure/MultiTenancy/`) runs after `TenantMiddleware`; skips check when `TenantId is null` (Administrator/unauthenticated) or path is `/health`/`/ping`
+- Cache key pattern: `"tenant_active_{tenantId}"` — `IMemoryCache` TTL 60 seconds; scoped services injected via `InvokeAsync` parameters (not constructor — middleware constructors are effectively singleton)
+- `ITenantCache` interface in `Application/Common/Interfaces/` — single method `void InvalidateTenant(Guid tenantId)`; implemented by `TenantCache` in `Infrastructure/MultiTenancy/`; inject into handlers that toggle `Tenant.IsActive` to keep cache consistent
+- `services.AddMemoryCache()` is in `Infrastructure/DependencyInjection.cs`
+
+### User Management (Sprint 1)
+- `IUserManagementService` in `Application/Common/Interfaces/` — implemented by `UserManagementService` in `Infrastructure/Identity/`; follows same pattern as `IAuthService`
+- Identity `CreateAsync` errors are returned as a `List<Error>` (one `Error.Validation` per Identity error) — do NOT join into a single string; controller `MapErrors` collects all descriptions into `ApiResponse.Errors[]`
+- Always check email uniqueness with `FindByEmailAsync` **before** calling `CreateAsync` to distinguish 409 (duplicate) from 400 (password policy)
+- `Tenant.Plan` is `string?` — added via migration `AddTenantPlan` (20260423...); validator enforces `NotEmpty()` at the API boundary so stored value is never empty string
 
 ### Docker
 - Credentials are in `.env` (gitignored). Copy `.env.example` → `.env` before first run.

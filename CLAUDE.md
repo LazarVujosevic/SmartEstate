@@ -208,8 +208,11 @@ Owner reviews milestone → plans next sprint with Lead Dev
 | 2026-04-23 | EF Core query filters reference `tenantContext` field directly | Capturing `TenantId` as a local `Guid?` in `OnModelCreating` freezes the value at model-build time; the field reference is re-evaluated per query |
 | 2026-04-23 | Migrations output dir: `Persistence/Migrations` | Keeps migrations co-located with `AppDbContext` in the Infrastructure persistence folder |
 | 2026-04-23 | `TenantContext` is a settable POCO (not `IHttpContextAccessor`-based) | `TenantMiddleware` sets `TenantId` explicitly — cleaner than reading from `IHttpContextAccessor` inside the context class; eliminates `HttpContext` dependency from `TenantContext` |
-| 2026-04-23 | `IXxxService` pattern for Identity concerns | Application handlers cannot reference `UserManager<T>` directly; define `IAuthService` in Application, implement in Infrastructure — keeps Application layer free of Identity types |
+| 2026-04-23 | `IXxxService` pattern for Identity concerns | Application handlers cannot reference `UserManager<T>` directly; define `IAuthService` / `IUserManagementService` in Application, implement in Infrastructure — keeps Application layer free of Identity types |
 | 2026-04-23 | `GlobalExceptionHandler` in `API/Common/` | Centralised exception handling via `IExceptionHandler`; catches `ValidationException` → 400, all others → 500, always returns `ApiResponse` shape |
+| 2026-04-23 | `ITenantCache` in Application, `TenantCache` in Infrastructure | Cache invalidation after tenant activation needs to happen in a handler (Application layer); defining a thin `ITenantCache` interface avoids leaking `IMemoryCache` into Application |
+| 2026-04-23 | `Tenant.Plan` added via `AddTenantPlan` migration | Sprint 0 schema did not include Plan; added as nullable string in Sprint 1 to avoid breaking existing rows |
+| 2026-04-23 | `HealthController` and `PingController` deleted | Were test scaffolding only; no production health endpoint needed until Sprint 10 (DB-verified health check) |
 
 ---
 
@@ -276,11 +279,11 @@ Owner reviews milestone → plans next sprint with Lead Dev
 |---|---|---|---|---|
 | 1.1 | [#23](https://github.com/LazarVujosevic/SmartEstate/issues/23) | POST `/auth/login` — ASP.NET Identity + JWT generation | `backend` | ✅ Done |
 | 1.2 | [#24](https://github.com/LazarVujosevic/SmartEstate/issues/24) | `TenantMiddleware` — resolves `ITenantContext` from JWT `tenant_id` claim | `backend` | ✅ Done |
-| 1.3 | [#25](https://github.com/LazarVujosevic/SmartEstate/issues/25) | EF Core Global Query Filters for all `ITenantEntity` entities | `backend` | 🔲 Open |
-| 1.4 | [#26](https://github.com/LazarVujosevic/SmartEstate/issues/26) | Middleware: block requests from inactive tenants (return 403) | `backend` | 🔲 Open |
+| 1.3 | [#25](https://github.com/LazarVujosevic/SmartEstate/issues/25) | EF Core Global Query Filters for all `ITenantEntity` entities | `backend` | ✅ Done |
+| 1.4 | [#26](https://github.com/LazarVujosevic/SmartEstate/issues/26) | Middleware: block requests from inactive tenants (return 403) | `backend` | ✅ Done |
 | 1.5 | [#27](https://github.com/LazarVujosevic/SmartEstate/issues/27) | Admin API: POST `/admin/tenants` — create a new tenant | `backend` | ✅ Done |
-| 1.6 | [#28](https://github.com/LazarVujosevic/SmartEstate/issues/28) | Admin API: POST `/admin/tenants/{id}/users` — create AgencyManager | `backend` | 🔲 Open |
-| 1.7 | [#29](https://github.com/LazarVujosevic/SmartEstate/issues/29) | Admin API: PATCH `/admin/tenants/{id}/activate` — toggle `IsActive` | `backend` | 🔲 Open |
+| 1.6 | [#28](https://github.com/LazarVujosevic/SmartEstate/issues/28) | Admin API: POST `/admin/tenants/{id}/users` — create AgencyManager | `backend` | ✅ Done |
+| 1.7 | [#29](https://github.com/LazarVujosevic/SmartEstate/issues/29) | Admin API: PATCH `/admin/tenants/{id}/activate` — toggle `IsActive` | `backend` | ✅ Done |
 
 **Frontend tasks:**
 | # | GitHub Issue | Task | Label | Status |
@@ -520,8 +523,13 @@ Owner reviews milestone → plans next sprint with Lead Dev
 - `TenantContext` is a **settable POCO** (not `IHttpContextAccessor`-based) — `TenantMiddleware` sets `TenantId` and `IsAdministrator` at request start; double-registration required: `AddScoped<TenantContext>()` + `AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>())`
 - `TenantMiddleware` is in `Infrastructure/MultiTenancy/TenantMiddleware.cs` — registered in `Program.cs` after `UseAuthorization()` via `app.UseMiddleware<TenantMiddleware>()`
 - `Tenant.Plan` is `string?` (nullable) in the domain entity — validator enforces `NotEmpty()` at API boundary; migration `AddTenantPlan` (2026-04-23)
-- `AdminTenantsController` uses `[Authorize(Roles = AppRoles.Administrator)]` at controller level — all admin controllers follow this pattern
+- `AdminTenantsController` uses `[Authorize(Roles = AppRoles.Administrator)]` at controller level — all admin controllers follow this pattern; has shared `MapErrors(List<Error>)` helper that maps `NotFound/Conflict/Validation/other` to correct HTTP status + `ApiResponse`
 - Controller `Problem()` fallback must NOT be used — always return `StatusCode(500, ApiResponse.Fail(...))` to maintain consistent response shape; `Problem()` returns RFC 7807 `ProblemDetails` which breaks frontend deserialization
+- `IMemoryCache` registered via `services.AddMemoryCache()` in `Infrastructure/DependencyInjection.cs`
+- `ITenantCache` interface in `Application/Common/Interfaces/` — `TenantCache` in `Infrastructure/MultiTenancy/` wraps `IMemoryCache.Remove`; used to invalidate `"tenant_active_{tenantId}"` after activation toggle
+- `InactiveTenantMiddleware` in `Infrastructure/MultiTenancy/` — runs after `TenantMiddleware`; skips `/health` and `/ping` paths; caches `Tenant.IsActive` for 60s; registered via `app.UseMiddleware<InactiveTenantMiddleware>()`
+- API request body records live in `API/Models/Requests/` — one file per record (e.g. `CreateTenantUserRequest.cs`, `SetTenantActiveRequest.cs`)
+- `HealthController` and `PingController` were deleted — they were test scaffolding; a proper DB-verified health endpoint is planned for Sprint 10
 
 ### Frontend
 - Docker Compose credentials are in `.env` (gitignored) — copy `.env.example` to `.env` before first `docker compose up -d`
