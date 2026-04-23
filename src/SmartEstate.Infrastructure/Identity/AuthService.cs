@@ -18,6 +18,7 @@ public class AuthService(
     ILogger<AuthService> logger)
     : IAuthService
 {
+    private static readonly JwtSecurityTokenHandler TokenHandler = new();
     private readonly JwtSettings _jwt = jwtOptions.Value;
 
     public async Task<ErrorOr<LoginResponseDto>> LoginAsync(string email, string password, CancellationToken ct)
@@ -30,7 +31,12 @@ public class AuthService(
         }
 
         var roles = await userManager.GetRolesAsync(user);
-        var role = roles.FirstOrDefault() ?? string.Empty;
+        var role = roles.FirstOrDefault();
+        if (string.IsNullOrEmpty(role))
+        {
+            logger.LogWarning("User {UserId} has no assigned role", user.Id);
+            return Error.Unauthorized(description: "Invalid credentials.");
+        }
 
         var (token, expiresAt) = GenerateJwt(user, role);
 
@@ -39,11 +45,11 @@ public class AuthService(
         return new LoginResponseDto(token, expiresAt, role, user.TenantId);
     }
 
-    private (string Token, DateTime ExpiresAt) GenerateJwt(ApplicationUser user, string role)
+    private (string Token, DateTimeOffset ExpiresAt) GenerateJwt(ApplicationUser user, string role)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwt.Secret));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-        var expiresAt = DateTime.UtcNow.AddMinutes(_jwt.ExpiryMinutes);
+        var expiresAt = DateTimeOffset.UtcNow.AddMinutes(_jwt.ExpiryMinutes);
 
         var claims = new List<Claim>
         {
@@ -60,9 +66,9 @@ public class AuthService(
             issuer: _jwt.Issuer,
             audience: _jwt.Audience,
             claims: claims,
-            expires: expiresAt,
+            expires: expiresAt.UtcDateTime,
             signingCredentials: creds);
 
-        return (new JwtSecurityTokenHandler().WriteToken(token), expiresAt);
+        return (TokenHandler.WriteToken(token), expiresAt);
     }
 }

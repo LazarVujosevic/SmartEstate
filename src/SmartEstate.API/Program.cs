@@ -69,8 +69,8 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.UseExceptionHandler();
 app.UseSerilogRequestLogging();
+app.UseExceptionHandler();
 app.UseHttpsRedirection();
 app.UseCors("BlazorWasm");
 app.UseAuthentication();

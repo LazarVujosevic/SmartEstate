@@ -19,6 +19,6 @@ public class AuthController(ISender mediator) : ControllerBase
             dto => Ok(ApiResponse<LoginResponseDto>.Ok(dto)),
             errors => errors.Any(e => e.Type == ErrorType.Unauthorized)
                 ? Unauthorized(ApiResponse.Fail("Invalid credentials."))
-                : Problem());
+                : StatusCode(StatusCodes.Status500InternalServerError, ApiResponse.Fail("An unexpected error occurred.")));
     }
 }
