@@ -2,6 +2,7 @@ using ErrorOr;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SmartEstate.API.Models.Requests;
 using SmartEstate.Application.Common.Models;
 using SmartEstate.Application.Features.Admin.Tenants.Commands.CreateTenant;
 using SmartEstate.Application.Features.Admin.Tenants.DTOs;
@@ -45,9 +46,10 @@ public class AdminTenantsController(ISender mediator) : ControllerBase
         if (errors.Any(e => e.Type == ErrorType.Conflict))
             return Conflict(ApiResponse.Fail(errors.First(e => e.Type == ErrorType.Conflict).Description));
         if (errors.Any(e => e.Type == ErrorType.Validation))
-            return BadRequest(ApiResponse.Fail(errors.First(e => e.Type == ErrorType.Validation).Description));
+        {
+            var messages = errors.Where(e => e.Type == ErrorType.Validation).Select(e => e.Description).ToList();
+            return BadRequest(ApiResponse.Fail("Validation failed.", messages));
+        }
         return StatusCode(StatusCodes.Status500InternalServerError, ApiResponse.Fail("An unexpected error occurred."));
     }
 }
-
-public record CreateTenantUserRequest(string Email, string Password, string FirstName, string LastName);

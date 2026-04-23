@@ -32,8 +32,10 @@ public class UserManagementService(
         var result = await userManager.CreateAsync(user, password);
         if (!result.Succeeded)
         {
-            var errors = result.Errors.Select(e => e.Description).ToList();
-            return Error.Validation(description: string.Join("; ", errors));
+            var errors = result.Errors
+                .Select(e => Error.Validation(code: e.Code, description: e.Description))
+                .ToList();
+            return errors;
         }
 
         await userManager.AddToRoleAsync(user, AppRoles.AgencyManager);
