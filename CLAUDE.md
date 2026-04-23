@@ -288,10 +288,10 @@ Owner reviews milestone → plans next sprint with Lead Dev
 **Frontend tasks:**
 | # | GitHub Issue | Task | Label | Status |
 |---|---|---|---|---|
-| 1.8 | [#30](https://github.com/LazarVujosevic/SmartEstate/issues/30) | `JwtAuthStateProvider` — custom `AuthenticationStateProvider` | `frontend` | 🔲 Open |
-| 1.9 | [#31](https://github.com/LazarVujosevic/SmartEstate/issues/31) | Login page — MudBlazor form, JWT stored in localStorage | `frontend` | 🔲 Open |
-| 1.10 | [#32](https://github.com/LazarVujosevic/SmartEstate/issues/32) | Fix `_isDarkMode` field initializer in `MainLayout.razor` | `frontend` | 🔲 Open |
-| 1.11 | [#33](https://github.com/LazarVujosevic/SmartEstate/issues/33) | Admin panel — tenant list, create form, activation toggle | `frontend` | 🔲 Open |
+| 1.8 | [#30](https://github.com/LazarVujosevic/SmartEstate/issues/30) | `JwtAuthStateProvider` — custom `AuthenticationStateProvider` | `frontend` | ✅ Done |
+| 1.9 | [#31](https://github.com/LazarVujosevic/SmartEstate/issues/31) | Login page — MudBlazor form, JWT stored in localStorage | `frontend` | ✅ Done |
+| 1.10 | [#32](https://github.com/LazarVujosevic/SmartEstate/issues/32) | Fix `_isDarkMode` field initializer in `MainLayout.razor` | `frontend` | ✅ Done |
+| 1.11 | [#33](https://github.com/LazarVujosevic/SmartEstate/issues/33) | Admin panel — tenant list, create form, activation toggle | `frontend` | ✅ Done |
 
 ---
 
@@ -538,6 +538,8 @@ Owner reviews milestone → plans next sprint with Lead Dev
 - MudBlazor 9.x: required providers in layout are `MudThemeProvider`, `MudPopoverProvider`, `MudDialogProvider`, `MudSnackbarProvider` — all four must be present or dropdowns/dialogs/snackbars will silently fail
 - Theme preference is stored in `localStorage` under key `smartestate_dark_mode` (bool) — read in `OnAfterRenderAsync`, not `OnInitializedAsync` (localStorage is unavailable during prerender)
 - `AuthorizeRouteView` + `RedirectToLogin` are already wired in `App.razor` — Sprint 1 Frontend only needs to register `JwtAuthStateProvider` and build the Login page
+- Admin tenant management uses `TenantAdminService` over `ApiClient` for `GET/POST/PATCH api/admin/tenants`; register feature-specific frontend services in `Program.cs`
+- Administrator-only navigation links belong inside `<AuthorizeView Roles="Administrator">`; current admin entry point is `/admin/tenants`
 - Gemini API has rate limits on free tier — batch AI requests where possible, avoid per-request calls in loops
 - Windows Server production deployment: use IIS reverse proxy for API + publish Blazor WASM as static files
 

@@ -1,0 +1,213 @@
+@page "/admin/tenants"
+@attribute [Authorize(Roles = "Administrator")]
+@inject TenantAdminService TenantService
+@inject ISnackbar Snackbar
+@using SmartEstate.Web.Models.Admin
+
+<PageTitle>Tenants — SmartEstate Admin</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudText Typo="Typo.h5">Tenants</MudText>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="OpenCreateDialog">
+            Create Tenant
+        </MudButton>
+    </MudStack>
+
+    @if (_isLoading)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+    else if (_error is not null)
+    {
+        <MudAlert Severity="Severity.Error">@_error</MudAlert>
+    }
+    else
+    {
+        <MudDataGrid T="TenantDto"
+                     Items="_tenants"
+                     Filterable="false"
+                     SortMode="SortMode.Single"
+                     Hover="true"
+                     Striped="true"
+                     Elevation="2">
+            <Columns>
+                <PropertyColumn Property="t => t.Name" Title="Name" />
+                <PropertyColumn Property="t => t.ContactEmail" Title="Contact Email" />
+                <PropertyColumn Property="t => t.Plan" Title="Plan" />
+                <TemplateColumn Title="Status" SortBy="t => t.IsActive">
+                    <CellTemplate>
+                        @if (context.Item.IsActive)
+                        {
+                            <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Filled">Active</MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Color="Color.Default" Size="Size.Small" Variant="Variant.Filled">Inactive</MudChip>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+                <PropertyColumn Property="t => t.CreatedAt" Title="Created At" Format="yyyy-MM-dd" />
+                <TemplateColumn Title="Actions" Sortable="false">
+                    <CellTemplate>
+                        <MudTooltip Text="@(context.Item.IsActive ? "Deactivate" : "Activate")">
+                            <MudIconButton Icon="@(context.Item.IsActive ? Icons.Material.Filled.ToggleOn : Icons.Material.Filled.ToggleOff)"
+                                           Color="@(context.Item.IsActive ? Color.Success : Color.Default)"
+                                           Size="Size.Small"
+                                           OnClick="() => ToggleActive(context.Item)" />
+                        </MudTooltip>
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+        </MudDataGrid>
+    }
+</MudContainer>
+
+<MudDialog @bind-Visible="_createDialogOpen" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Create Tenant</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_createForm" @bind-IsValid="_isCreateFormValid">
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField T="string"
+                                  @bind-Value="_newName"
+                                  Label="Agency Name"
+                                  Required="true"
+                                  RequiredError="Name is required." />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField T="string"
+                                  @bind-Value="_newEmail"
+                                  Label="Contact Email"
+                                  InputType="InputType.Email"
+                                  Required="true"
+                                  RequiredError="Contact email is required."
+                                  Validation="@(new EmailAddressAttribute())" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField T="string"
+                                  @bind-Value="_newPlan"
+                                  Label="Plan"
+                                  Required="true"
+                                  RequiredError="Plan is required." />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CloseCreateDialog">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Disabled="_isCreating"
+                   OnClick="SubmitCreate">
+            @if (_isCreating)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <span>Creating...</span>
+            }
+            else
+            {
+                <span>Create</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<TenantDto> _tenants = [];
+    private bool _isLoading = true;
+    private string? _error;
+
+    private bool _createDialogOpen;
+    private MudForm _createForm = null!;
+    private bool _isCreateFormValid;
+    private bool _isCreating;
+    private string _newName = string.Empty;
+    private string _newEmail = string.Empty;
+    private string _newPlan = string.Empty;
+
+    private readonly DialogOptions _dialogOptions = new()
+    {
+        MaxWidth = MaxWidth.Small,
+        FullWidth = true,
+        CloseOnEscapeKey = true
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTenants();
+    }
+
+    private async Task LoadTenants()
+    {
+        _isLoading = true;
+        _error = null;
+
+        var result = await TenantService.GetAllAsync();
+        if (result is not null)
+            _tenants = result;
+        else
+            _error = "Failed to load tenants. Please try again.";
+
+        _isLoading = false;
+    }
+
+    private void OpenCreateDialog()
+    {
+        _newName = string.Empty;
+        _newEmail = string.Empty;
+        _newPlan = string.Empty;
+        _createDialogOpen = true;
+    }
+
+    private void CloseCreateDialog() => _createDialogOpen = false;
+
+    private async Task SubmitCreate()
+    {
+        await _createForm.ValidateAsync();
+        if (!_isCreateFormValid) return;
+
+        _isCreating = true;
+        var (tenant, error) = await TenantService.CreateAsync(_newName, _newEmail, _newPlan);
+        _isCreating = false;
+
+        if (tenant is not null)
+        {
+            _tenants.Add(tenant);
+            _tenants = [.. _tenants.OrderBy(t => t.Name)];
+            CloseCreateDialog();
+            Snackbar.Add($"Tenant '{tenant.Name}' created successfully.", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add(error ?? "Failed to create tenant.", Severity.Error);
+        }
+    }
+
+    private async Task ToggleActive(TenantDto tenant)
+    {
+        var previousState = tenant.IsActive;
+        tenant.IsActive = !tenant.IsActive;
+
+        var (updated, error) = await TenantService.SetActiveAsync(tenant.Id, tenant.IsActive);
+
+        if (updated is not null)
+        {
+            tenant.IsActive = updated.IsActive;
+            Snackbar.Add(
+                $"Tenant '{tenant.Name}' {(tenant.IsActive ? "activated" : "deactivated")}.",
+                Severity.Success);
+        }
+        else
+        {
+            tenant.IsActive = previousState;
+            Snackbar.Add(error ?? "Failed to update tenant status.", Severity.Error);
+        }
+    }
+}

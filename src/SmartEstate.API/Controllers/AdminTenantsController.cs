@@ -7,6 +7,7 @@ using SmartEstate.Application.Common.Models;
 using SmartEstate.Application.Features.Admin.Tenants.Commands.CreateTenant;
 using SmartEstate.Application.Features.Admin.Tenants.Commands.SetTenantActive;
 using SmartEstate.Application.Features.Admin.Tenants.DTOs;
+using SmartEstate.Application.Features.Admin.Tenants.Queries.GetTenants;
 using SmartEstate.Application.Features.Admin.Users.Commands.CreateTenantUser;
 using SmartEstate.Application.Features.Admin.Users.DTOs;
 using SmartEstate.Infrastructure.Identity;
@@ -18,6 +19,15 @@ namespace SmartEstate.API.Controllers;
 [Authorize(Roles = AppRoles.Administrator)]
 public class AdminTenantsController(ISender mediator) : ControllerBase
 {
+    [HttpGet]
+    public async Task<IActionResult> GetAll(CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetTenantsQuery(), ct);
+        return result.Match(
+            list => Ok(ApiResponse<List<TenantDto>>.Ok(list)),
+            errors => MapErrors(errors));
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create(CreateTenantCommand command, CancellationToken ct)
     {

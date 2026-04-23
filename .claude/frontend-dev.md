@@ -268,3 +268,6 @@ PR description must include:
   ```
 - JWT localStorage key: `"smartestate_jwt"` — must match across `JwtAuthStateProvider`, Login page, and `ApiClient`
 - Theme localStorage key: `"smartestate_dark_mode"` — `_isDarkMode` field initializer must be `false` (matches `stored ?? false` in `OnAfterRenderAsync`)
+- Admin tenant management page lives at `Pages/Admin/Tenants.razor` and is protected with `[Authorize(Roles = "Administrator")]`.
+- Use `TenantAdminService` for admin tenant HTTP calls and register it in `Program.cs`; it wraps `ApiClient` calls to `api/admin/tenants`.
+- Admin navigation entries must be wrapped in `<AuthorizeView Roles="Administrator">`; `/admin/tenants` is listed under the "Administration" nav group.
