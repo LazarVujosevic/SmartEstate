@@ -4,13 +4,20 @@ using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using SmartEstate.Application;
 using SmartEstate.Infrastructure;
+using SmartEstate.Infrastructure.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.UseSerilog((ctx, cfg) =>
     cfg.ReadFrom.Configuration(ctx.Configuration)
        .Enrich.FromLogContext()
-       .WriteTo.Console());
+       .Destructure.With<SensitivePropertyDestructuringPolicy>()
+       .WriteTo.Console()
+       .WriteTo.File(
+           "logs/smartestate-.log",
+           rollingInterval: RollingInterval.Day,
+           retainedFileCountLimit: 7,
+           outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}"));
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
