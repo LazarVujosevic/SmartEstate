@@ -170,7 +170,33 @@ All 5 issues merged: #13 (Docker), #14 (EF Core migration), #15 (Serilog), #16 (
 - `_isDarkMode = true` field initializer in `MainLayout.razor` inconsistent with `stored ?? false` default — causes dark→light flash on first load. Add as Sprint 1 Frontend task.
 - `AuthorizeRouteView` + `RedirectToLogin` already done — skip from Sprint 1 Frontend issues
 
-### Sprint 1 — Planned
+### Sprint 1 — 🔄 In Progress (2026-04-23)
+
+GitHub Issues created: #23–#33 (11 issues total: 7 backend, 4 frontend)
+
+**Backend progress:**
+| Issue | Task | Status | PR |
+|---|---|---|---|
+| #23 | POST /auth/login | ✅ Merged | PR #34 |
+| #24 | TenantMiddleware | ✅ Merged | PR #35 |
+| #25 | EF Core Global Query Filters | 🔲 Open | — |
+| #26 | Inactive tenant 403 middleware | 🔲 Open | — |
+| #27 | POST /admin/tenants | ✅ Merged | PR #36 |
+| #28 | POST /admin/tenants/{id}/users | 🔲 Open | — |
+| #29 | PATCH /admin/tenants/{id}/activate | 🔲 Open | — |
+
+**Frontend progress:**
+| Issue | Task | Status | PR |
+|---|---|---|---|
+| #30 | JwtAuthStateProvider | 🔲 Open | — |
+| #31 | Login page | 🔲 Open | — |
+| #32 | Fix _isDarkMode initializer | 🔲 Open | — |
+| #33 | Admin panel (tenant management) | 🔲 Open | — |
+
+**Review notes from merged PRs:**
+- PR #34: `Problem()` fallback in controllers → must be `StatusCode(500, ApiResponse.Fail(...))`. Middleware order: `UseSerilogRequestLogging` before `UseExceptionHandler`.
+- PR #35: `TenantContext` refactored to settable POCO — good architectural call. Double-registration pattern for `TenantContext` is the established pattern.
+- PR #36: `CreatedAtAction(nameof(Create), ...)` points to POST, not GET — acceptable now, update when GET endpoint is added. Tenant name duplicate check is case-sensitive.
 
 ---
 

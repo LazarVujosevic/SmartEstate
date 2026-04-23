@@ -222,6 +222,7 @@ PR description must include:
 ### NuGet Version Constraints
 - `Serilog.Sinks.File` must be **`7.0.0`** — `Serilog.AspNetCore 10.0.0` requires `>= 7.0.0` transitively; specifying 6.0.0 causes NU1605 downgrade error that fails the build
 - `Microsoft.EntityFrameworkCore.Design` must be added to **both** `SmartEstate.Infrastructure` (already there) **and** `SmartEstate.API` (startup project) — EF Core CLI tools check the startup project
+- `System.IdentityModel.Tokens.Jwt 8.17.0` must be explicitly added to Infrastructure — NOT transitively available from `Microsoft.AspNetCore.App` framework reference even though `JwtBearer` is in the framework
 
 ### EF Core Migrations
 - Install tool once: `dotnet tool install --global dotnet-ef`
@@ -261,6 +262,39 @@ PR description must include:
 ### Roles & AppRoles
 - `AppRoles` constants are defined in `SmartEstate.Infrastructure.Identity` namespace, same file as `ApplicationRole`: `Infrastructure/Identity/ApplicationRole.cs`
 - `AppRoles.All` is a string array: `[Administrator, AgencyManager, Agent]` — use it for bulk role seeding
+
+### Authentication & JWT (Sprint 1)
+- `IAuthService` interface in `Application/Common/Interfaces/` — implemented by `AuthService` in `Infrastructure/Identity/`; use this pattern whenever Application needs Identity concerns (`UserManager`, etc.)
+- `JwtSettings` at `Infrastructure/Identity/JwtSettings.cs` — bound via `services.Configure<JwtSettings>(configuration.GetSection("Jwt"))`; injected as `IOptions<JwtSettings>`
+- JWT claims written by `AuthService`: `sub` (userId), `email`, `role` (ClaimTypes.Role), `tenant_id` (AppClaims.TenantId — only if not Administrator), `jti`, `exp`
+- `AppClaims.TenantId` constant = `"tenant_id"` — defined in `Application/Common/Constants/AppClaims.cs`; never use the string literal directly
+- `JwtSecurityTokenHandler` should be `static readonly` in `AuthService` — thread-safe, no need to instantiate per-request
+- If user has no roles assigned, return `Error.Unauthorized` — do not issue a token with empty role claim
+- JWT `Secret` must be ≥ 32 chars — validated at startup, app throws `InvalidOperationException` if not
+
+### Multi-Tenancy (Sprint 1)
+- `TenantContext` (`Infrastructure/Services/TenantContext.cs`) is a **settable POCO** — `TenantId` and `IsAdministrator` are set by `TenantMiddleware` at request start; do NOT read from `IHttpContextAccessor` inside `TenantContext`
+- **Double-registration required** in `DependencyInjection.cs`:
+  ```csharp
+  services.AddScoped<TenantContext>();
+  services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
+  ```
+  Middleware resolves `TenantContext` (concrete) to set values; all other consumers resolve `ITenantContext` (interface). Both get the same scoped instance.
+- `TenantMiddleware` at `Infrastructure/MultiTenancy/TenantMiddleware.cs` — registered after `UseAuthorization()` in `Program.cs`
+- Middleware only sets `TenantId` when user is authenticated AND claim is present and valid Guid — silent skip otherwise
+
+### Exception Handling (Sprint 1)
+- `GlobalExceptionHandler` (`API/Common/GlobalExceptionHandler.cs`) implements `IExceptionHandler`
+- Catches `FluentValidation.ValidationException` → `400 Bad Request` with `ApiResponse.Fail("Validation failed.", errors)`
+- Catches all other exceptions → `500 Internal Server Error` with `ApiResponse.Fail("An unexpected error occurred.")`
+- Registered in `Program.cs`: `services.AddExceptionHandler<GlobalExceptionHandler>()` + `services.AddProblemDetails()`; activated with `app.UseExceptionHandler()`
+- **Never use `ControllerBase.Problem()`** in error branches — it returns RFC 7807 `ProblemDetails`, not `ApiResponse`; use `StatusCode(500, ApiResponse.Fail(...))` instead
+- `UseSerilogRequestLogging()` must be **before** `UseExceptionHandler()` in the middleware pipeline
+
+### Admin Controllers (Sprint 1)
+- Admin controllers live in `API/Controllers/`, route prefix `api/admin/...`, with `[Authorize(Roles = AppRoles.Administrator)]` at controller class level
+- Use `CreatedAtAction(nameof(ActionName), new { id = dto.Id }, body)` for 201 responses — when a GET endpoint is added later, update the action name reference
+- Duplicate-check queries (e.g. tenant name uniqueness) use `==` which is case-sensitive in PostgreSQL — for user-facing uniqueness, consider `EF.Functions.ILike` or normalizing to lowercase
 
 ### Docker
 - Credentials are in `.env` (gitignored). Copy `.env.example` → `.env` before first run.

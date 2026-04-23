@@ -207,6 +207,9 @@ Owner reviews milestone → plans next sprint with Lead Dev
 | 2026-04-23 | DataSeeder via `CreateAsyncScope()` (not IHostedService) | Runs once at startup, simpler than a full IHostedService for a one-off seed operation |
 | 2026-04-23 | EF Core query filters reference `tenantContext` field directly | Capturing `TenantId` as a local `Guid?` in `OnModelCreating` freezes the value at model-build time; the field reference is re-evaluated per query |
 | 2026-04-23 | Migrations output dir: `Persistence/Migrations` | Keeps migrations co-located with `AppDbContext` in the Infrastructure persistence folder |
+| 2026-04-23 | `TenantContext` is a settable POCO (not `IHttpContextAccessor`-based) | `TenantMiddleware` sets `TenantId` explicitly — cleaner than reading from `IHttpContextAccessor` inside the context class; eliminates `HttpContext` dependency from `TenantContext` |
+| 2026-04-23 | `IXxxService` pattern for Identity concerns | Application handlers cannot reference `UserManager<T>` directly; define `IAuthService` in Application, implement in Infrastructure — keeps Application layer free of Identity types |
+| 2026-04-23 | `GlobalExceptionHandler` in `API/Common/` | Centralised exception handling via `IExceptionHandler`; catches `ValidationException` → 400, all others → 500, always returns `ApiResponse` shape |
 
 ---
 
@@ -269,23 +272,23 @@ Owner reviews milestone → plans next sprint with Lead Dev
 > **Note for Lead Dev:** When creating Sprint 1 GitHub Issues, skip "Route guard — AuthorizeRouteView + RedirectToLogin" — already implemented in PR #22 (Sprint 0 Frontend). The Blazor WASM routing infrastructure is done; Sprint 1 Frontend only needs Login page + JwtAuthStateProvider.
 
 **Backend tasks:**
-| Task | Label |
-|---|---|
-| POST `/auth/login` — ASP.NET Identity + JWT generation (claims: sub, email, role, tenant_id, exp) | `backend` |
-| `TenantMiddleware` — resolves `ITenantContext` from JWT `tenant_id` claim on every request | `backend` |
-| EF Core Global Query Filters for all `ITenantEntity` entities in `AppDbContext` | `backend` |
-| Middleware: block requests from inactive tenants (return 403), except Administrator | `backend` |
-| Admin API: POST `/admin/tenants` — create a new tenant (name, contact, plan) | `backend` |
-| Admin API: POST `/admin/tenants/{id}/users` — create initial AgencyManager user for tenant | `backend` |
-| Admin API: PATCH `/admin/tenants/{id}/activate` — toggle `IsActive` flag | `backend` |
+| # | GitHub Issue | Task | Label | Status |
+|---|---|---|---|---|
+| 1.1 | [#23](https://github.com/LazarVujosevic/SmartEstate/issues/23) | POST `/auth/login` — ASP.NET Identity + JWT generation | `backend` | ✅ Done |
+| 1.2 | [#24](https://github.com/LazarVujosevic/SmartEstate/issues/24) | `TenantMiddleware` — resolves `ITenantContext` from JWT `tenant_id` claim | `backend` | ✅ Done |
+| 1.3 | [#25](https://github.com/LazarVujosevic/SmartEstate/issues/25) | EF Core Global Query Filters for all `ITenantEntity` entities | `backend` | 🔲 Open |
+| 1.4 | [#26](https://github.com/LazarVujosevic/SmartEstate/issues/26) | Middleware: block requests from inactive tenants (return 403) | `backend` | 🔲 Open |
+| 1.5 | [#27](https://github.com/LazarVujosevic/SmartEstate/issues/27) | Admin API: POST `/admin/tenants` — create a new tenant | `backend` | ✅ Done |
+| 1.6 | [#28](https://github.com/LazarVujosevic/SmartEstate/issues/28) | Admin API: POST `/admin/tenants/{id}/users` — create AgencyManager | `backend` | 🔲 Open |
+| 1.7 | [#29](https://github.com/LazarVujosevic/SmartEstate/issues/29) | Admin API: PATCH `/admin/tenants/{id}/activate` — toggle `IsActive` | `backend` | 🔲 Open |
 
 **Frontend tasks:**
-| Task | Label |
-|---|---|
-| Login page — MudBlazor form, JWT stored in localStorage, redirect after login | `frontend` |
-| `JwtAuthStateProvider` — custom `AuthenticationStateProvider`, parses JWT claims from stored JWT | `frontend` |
-| Fix `_isDarkMode` field initializer in `MainLayout.razor` — change default from `true` to `false` to avoid dark→light flash on first load | `frontend` |
-| Admin panel — tenant list (MudDataGrid), create tenant form, toggle activation | `frontend` |
+| # | GitHub Issue | Task | Label | Status |
+|---|---|---|---|---|
+| 1.8 | [#30](https://github.com/LazarVujosevic/SmartEstate/issues/30) | `JwtAuthStateProvider` — custom `AuthenticationStateProvider` | `frontend` | 🔲 Open |
+| 1.9 | [#31](https://github.com/LazarVujosevic/SmartEstate/issues/31) | Login page — MudBlazor form, JWT stored in localStorage | `frontend` | 🔲 Open |
+| 1.10 | [#32](https://github.com/LazarVujosevic/SmartEstate/issues/32) | Fix `_isDarkMode` field initializer in `MainLayout.razor` | `frontend` | 🔲 Open |
+| 1.11 | [#33](https://github.com/LazarVujosevic/SmartEstate/issues/33) | Admin panel — tenant list, create form, activation toggle | `frontend` | 🔲 Open |
 
 ---
 
@@ -509,10 +512,16 @@ Owner reviews milestone → plans next sprint with Lead Dev
 - Scraping portals (4zida, halooglasi, etc.) may change their HTML structure — scrapers must fail gracefully, log full context, and continue; never crash the worker
 - `System.IdentityModel.Tokens.Jwt 8.17.0` must be explicitly added to Infrastructure — it is NOT transitively available via `FrameworkReference Include="Microsoft.AspNetCore.App"` even though JwtBearer is in the framework
 - `UseSerilogRequestLogging()` must come **before** `UseExceptionHandler()` in `Program.cs` — otherwise Serilog does not capture the rewritten status code from exception handling
-- `GlobalExceptionHandler` (implements `IExceptionHandler`) is in `API/Common/` — catches `FluentValidation.ValidationException` from the MediatR pipeline and returns `400 Bad Request` with `ApiResponse` shape; catches all other exceptions and returns `500`
+- `GlobalExceptionHandler` (implements `IExceptionHandler`) is in `API/Common/` — catches `FluentValidation.ValidationException` from the MediatR pipeline and returns `400 Bad Request` with `ApiResponse` shape; catches all other exceptions and returns `500`; registered via `services.AddExceptionHandler<GlobalExceptionHandler>()` + `services.AddProblemDetails()`
 - `IAuthService` pattern: when Application handlers need Identity concerns (`UserManager` etc.), define `IXxxService` in Application and implement in Infrastructure — keeps Application layer free of Identity types
 - `JwtSettings` options class at `Infrastructure/Identity/JwtSettings.cs`, bound via `services.Configure<JwtSettings>(configuration.GetSection("Jwt"))` — properties: `Secret`, `Issuer`, `Audience`, `ExpiryMinutes` (default 60)
 - JWT `Secret` is validated at startup (≥ 32 chars) — app throws `InvalidOperationException` if missing or too short; placeholder in `appsettings.json` is long enough for dev
+- `AppClaims.TenantId` constant (`"tenant_id"`) defined in `Application/Common/Constants/AppClaims.cs` — use this everywhere instead of the string literal
+- `TenantContext` is a **settable POCO** (not `IHttpContextAccessor`-based) — `TenantMiddleware` sets `TenantId` and `IsAdministrator` at request start; double-registration required: `AddScoped<TenantContext>()` + `AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>())`
+- `TenantMiddleware` is in `Infrastructure/MultiTenancy/TenantMiddleware.cs` — registered in `Program.cs` after `UseAuthorization()` via `app.UseMiddleware<TenantMiddleware>()`
+- `Tenant.Plan` is `string?` (nullable) in the domain entity — validator enforces `NotEmpty()` at API boundary; migration `AddTenantPlan` (2026-04-23)
+- `AdminTenantsController` uses `[Authorize(Roles = AppRoles.Administrator)]` at controller level — all admin controllers follow this pattern
+- Controller `Problem()` fallback must NOT be used — always return `StatusCode(500, ApiResponse.Fail(...))` to maintain consistent response shape; `Problem()` returns RFC 7807 `ProblemDetails` which breaks frontend deserialization
 
 ### Frontend
 - Docker Compose credentials are in `.env` (gitignored) — copy `.env.example` to `.env` before first `docker compose up -d`
