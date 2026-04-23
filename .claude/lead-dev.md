@@ -241,6 +241,13 @@ When starting a new sprint:
 - PR #52 (#45): `TenantId` removed from `BuyerDto` (security), `defaultValueSql: "ARRAY[]::text[]"` added for `PreferredLocations` migration (safety)
 - PRs #53–#55 (#46–#48): merged in strict order (each built on previous `BuyersController.cs` diff). All clean — `UpdatedAt` auto-handled by `AppDbContext.SaveChangesAsync`, `ClaimTypes.NameIdentifier` acceptable as BCL constant.
 
+**Sprint 2 post-merge bugfixes (applied directly to main after owner testing):**
+- `GET /api/buyers/{id}`: `GetBuyerQuery` + handler were never implemented — controller stub returned `NotFound()` unconditionally. Created `GetBuyer/GetBuyerQuery.cs` + `GetBuyerQueryHandler.cs`.
+- `PUT /api/buyers/{id}`: `UpdateBuyerCommand` + handler were never implemented. Created `UpdateBuyer/UpdateBuyerCommand.cs` + `UpdateBuyerCommandHandler.cs` + `UpdateBuyerRequest.cs`.
+- `DELETE /api/buyers/{id}`: `DeleteBuyerCommand` + handler were never implemented. Created `DeleteBuyer/DeleteBuyerCommand.cs` + `DeleteBuyerCommandHandler.cs`.
+- `ApiClient.SendAsync` did not handle `204 No Content` — tried to deserialize empty body, threw exception, frontend showed "Failed to delete buyer." Fixed by returning `ApiResponse<T> { Success = true }` on 204.
+- **Root cause pattern:** PRs #53–#55 were stacked on feature branches. `BuyersController.cs` diffs showed only `Create` and `GetAll` — Get/Update/Delete controller actions and their Application layer handlers were never actually committed.
+
 ### Sprint 2 Planning Notes — Buyer Management (2026-04-24)
 
 Sprint 2 is planned as 7 atomic issues: 4 backend, 3 frontend. The canonical detailed plan is in `CLAUDE.md` under "Sprint 2 — Buyer Management".

@@ -6,6 +6,9 @@ using SmartEstate.API.Models.Requests;
 using SmartEstate.Application.Common.Models;
 using SmartEstate.Application.Features.Buyers.Commands.CreateBuyer;
 using SmartEstate.Application.Features.Buyers.DTOs;
+using SmartEstate.Application.Features.Buyers.Commands.DeleteBuyer;
+using SmartEstate.Application.Features.Buyers.Commands.UpdateBuyer;
+using SmartEstate.Application.Features.Buyers.Queries.GetBuyer;
 using SmartEstate.Application.Features.Buyers.Queries.GetBuyers;
 using SmartEstate.Infrastructure.Identity;
 using System.Security.Claims;
@@ -51,7 +54,41 @@ public class BuyersController(ISender mediator) : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
-    public IActionResult GetById(Guid id) => NotFound();
+    public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetBuyerQuery(id), ct);
+        return result.Match(
+            dto => Ok(ApiResponse<BuyerDto>.Ok(dto)),
+            errors => MapErrors(errors));
+    }
+
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateBuyerRequest body, CancellationToken ct)
+    {
+        var command = new UpdateBuyerCommand(
+            id,
+            body.FullName,
+            body.LifestyleDescription,
+            body.Email,
+            body.Phone,
+            body.BudgetMinEur,
+            body.BudgetMaxEur,
+            body.PreferredLocations);
+
+        var result = await mediator.Send(command, ct);
+        return result.Match(
+            dto => Ok(ApiResponse<BuyerDto>.Ok(dto)),
+            errors => MapErrors(errors));
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        var result = await mediator.Send(new DeleteBuyerCommand(id), ct);
+        return result.Match(
+            _ => NoContent(),
+            errors => MapErrors(errors));
+    }
 
     private IActionResult MapErrors(List<Error> errors)
     {

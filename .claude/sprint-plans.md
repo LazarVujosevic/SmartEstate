@@ -106,7 +106,7 @@
 
 **#48 — DELETE /buyers/{id}**
 - Sets `IsDeleted = true`, `UpdatedAt = DateTime.UtcNow` — no physical delete
-- Returns `Ok(ApiResponse<object>.Ok("Buyer deleted"))` — no 204
+- Returns `204 No Content` (implemented as `NoContent()`)
 - Returns 404 if already deleted (excluded by filter)
 - `MatchReport` records are NOT deleted — Sprint 5 depends on them
 
@@ -142,6 +142,15 @@
 - Client-side validation: required fields, email format, budget min <= max
 - After create/edit/delete: snackbar + navigate/refresh predictably
 - Do NOT expose AI fields (`AiTags`, `AiProfile`) — Sprint 4
+
+### Post-merge bugfixes (applied directly to main after owner testing)
+
+The following were missing from the merged PRs — controller stubs and Application layer handlers were never committed due to stacked PR merge order issues:
+
+- `GET /api/buyers/{id}`: `GetBuyerQuery` + `GetBuyerQueryHandler` created in `Application/Features/Buyers/Queries/GetBuyer/`
+- `PUT /api/buyers/{id}`: `UpdateBuyerCommand` + `UpdateBuyerCommandHandler` created in `Application/Features/Buyers/Commands/UpdateBuyer/`; `UpdateBuyerRequest` added to `API/Models/Requests/`
+- `DELETE /api/buyers/{id}`: `DeleteBuyerCommand` + `DeleteBuyerCommandHandler` created in `Application/Features/Buyers/Commands/DeleteBuyer/`
+- `ApiClient.SendAsync`: added `204 No Content` guard before `ReadFromJsonAsync` — DELETE returns no body; missing guard caused deserialization exception and "Failed to delete buyer." on frontend
 
 ---
 

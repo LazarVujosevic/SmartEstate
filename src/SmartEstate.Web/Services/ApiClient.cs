@@ -48,6 +48,9 @@ public class ApiClient(HttpClient http, ILocalStorageService localStorage, Navig
                 return null;
             }
 
+            if (response.StatusCode == HttpStatusCode.NoContent)
+                return new ApiResponse<T> { Success = true };
+
             return await response.Content.ReadFromJsonAsync<ApiResponse<T>>();
         }
         catch

@@ -286,3 +286,4 @@ PR description must include:
 - `PagedResult<T>` client model is in `Web/Models/Common/PagedResult.cs` (mirrors backend `PagedResult<T>`).
 - Buyer pages: `/buyers` (list), `/buyers/create`, `/buyers/{id}` (detail), `/buyers/{id}/edit`.
 - Components using `System.Timers.Timer` must declare `@implements IDisposable` — Blazor only calls `Dispose()` on components that explicitly declare the interface; without it the timer leaks on unmount.
+- `ApiClient.SendAsync` must handle `204 No Content` before calling `ReadFromJsonAsync` — DELETE endpoints return no body, deserialization throws, and the frontend sees a null response (treated as failure). Pattern: `if (response.StatusCode == HttpStatusCode.NoContent) return new ApiResponse<T> { Success = true };`
