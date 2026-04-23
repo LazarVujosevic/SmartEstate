@@ -257,9 +257,123 @@ PR description must include:
 
 ## Implementation Notes & Discoveries
 
-*(Update this section as you implement features)*
+### Sprint 0 — Blazor WASM Starter Layout (Issue #16, PR #22)
 
-- API base URL for local dev: `https://localhost:7001`  
-- MudBlazor requires `<MudThemeProvider>`, `<MudDialogProvider>`, `<MudSnackbarProvider>` in `MainLayout.razor` or `App.razor`
-- Blazor WASM auth: JWT claims are parsed from the token payload by `JwtAuthStateProvider` — no separate user-info endpoint needed
+**MudBlazor 9.x — breaking differences from docs:**
+- `MudThemeProvider.GetSystemPreference()` **does not exist** in v9 — omit it; default theme preference to `false` (light) or read via JS interop
+- Four providers are required in the layout — all must be present or components silently fail:
+  ```razor
+  <MudThemeProvider @ref="_themeProvider" Theme="_theme" @bind-IsDarkMode="_isDarkMode" />
+  <MudPopoverProvider />   ← NEW in v9, required for tooltips/dropdowns
+  <MudDialogProvider />
+  <MudSnackbarProvider />
+  ```
+- These providers live in `MainLayout.razor` (not `App.razor`) so they have access to the layout's `_isDarkMode` state
+
+**Theme setup:**
+- Theme is defined as a single `MudTheme` object with `PaletteLight` and `PaletteDark` — never scatter color overrides
+- User preference persisted to localStorage under key `smartestate_dark_mode` (bool) via `Blazored.LocalStorage`
+- Read preference in `OnAfterRenderAsync(firstRender: true)` — not `OnInitializedAsync`, because JS interop (localStorage) is only available after render
+- Default value: `false` (light mode) when no stored preference
+
+**Bootstrap removal:**
+- Bootstrap has been **completely removed** from `index.html` — MudBlazor handles all styling
+- Mixing Bootstrap + MudBlazor causes visual conflicts — do not re-add Bootstrap
+
+**`index.html` head section (correct order):**
+```html
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
+<link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
+<link rel="stylesheet" href="css/app.css" />
+<link href="SmartEstate.Web.styles.css" rel="stylesheet" />
+```
+And before `blazor.webassembly.js`:
+```html
+<script src="_content/MudBlazor/MudBlazor.min.js"></script>
+```
+
+**`Program.cs` — correct service registration:**
+```csharp
+builder.Services.AddBlazoredLocalStorage();
+builder.Services.AddMudServices();
+builder.Services.AddAuthorizationCore();
+// HttpClient uses ApiBaseUrl from wwwroot/appsettings.json — NOT HostEnvironment.BaseAddress
+var apiBaseUrl = builder.Configuration["ApiBaseUrl"]
+    ?? throw new InvalidOperationException("ApiBaseUrl is not configured.");
+builder.Services.AddScoped(_ => new HttpClient { BaseAddress = new Uri(apiBaseUrl) });
+```
+
+**`App.razor` — auth-ready router:**
+```razor
+<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(App).Assembly" NotFoundPage="typeof(Pages.NotFound)">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                <NotAuthorized>
+                    <RedirectToLogin />
+                </NotAuthorized>
+            </AuthorizeRouteView>
+        </Found>
+    </Router>
+</CascadingAuthenticationState>
+```
+
+**`Auth/RedirectToLogin.razor`** — redirect component with returnUrl support:
+```csharp
+protected override void OnInitialized()
+{
+    var returnUrl = Uri.EscapeDataString(Navigation.ToBaseRelativePath(Navigation.Uri));
+    Navigation.NavigateTo($"/login?returnUrl={returnUrl}", forceLoad: false);
+}
+```
+
+**NavMenu patterns:**
+- Dashboard uses `Match="NavLinkMatch.All"` (exact `/` match)
+- All other routes use `Match="NavLinkMatch.Prefix"`
+- Divider (`<MudDivider>`) separates core nav from Lead-Gen section
+
+**`wwwroot/appsettings.json`** — tracked in git; `appsettings.Development.json` is **gitignored**:
+```json
+{ "ApiBaseUrl": "https://localhost:7001" }
+```
+
+**Actual project structure after Sprint 0:**
+```
+SmartEstate.Web/
+├── wwwroot/
+│   ├── appsettings.json          ← ApiBaseUrl (tracked)
+│   ├── appsettings.Development.json  ← gitignored, create manually
+│   ├── css/app.css               ← only loading spinner + blazor-error-ui styles
+│   ├── favicon.png
+│   └── index.html                ← MudBlazor CSS/JS + Roboto; no Bootstrap
+├── Auth/
+│   └── RedirectToLogin.razor     ← redirect unauthenticated users to /login?returnUrl=...
+├── Layout/
+│   ├── MainLayout.razor          ← MudLayout + AppBar + Drawer + MainContent + theme toggle
+│   └── NavMenu.razor             ← MudNavMenu with 6 placeholder links
+├── Pages/
+│   ├── Home.razor                ← "/" Dashboard placeholder
+│   └── NotFound.razor            ← MudBlazor styled 404
+├── App.razor                     ← CascadingAuthenticationState + AuthorizeRouteView
+├── Program.cs                    ← MudBlazor + LocalStorage + Auth + HttpClient wired up
+└── _Imports.razor                ← MudBlazor, Blazored.LocalStorage, Authorization usings
+```
+
+**Packages installed (SmartEstate.Web.csproj):**
+- `MudBlazor` 9.3.0
+- `Blazored.LocalStorage` 4.3.0
+- `Microsoft.AspNetCore.Components.Authorization` 10.0.5
+
+**Sprint 1 prerequisites already in place (implemented in Sprint 0 layout):**
+- `CascadingAuthenticationState` wraps the router ✅
+- `AuthorizeRouteView` with `RedirectToLogin` fallback ✅
+- `AddAuthorizationCore()` registered ✅
+- `AddBlazoredLocalStorage()` registered ✅ (needed for JWT storage)
+
+**What Sprint 1 frontend needs to add:**
+- `JwtAuthStateProvider` (implements `AuthenticationStateProvider`)
+- `AuthService` (login HTTP call, token storage/retrieval)
+- `Login.razor` page (`/login`)
+- Role-based `<AuthorizeView>` wrappers in `NavMenu.razor`
 - For file uploads (property images): use `IBrowserFile` with `MudFileUpload` — send as `multipart/form-data` to API

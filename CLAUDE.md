@@ -207,6 +207,9 @@ Owner reviews milestone → plans next sprint with Lead Dev
 | 2026-04-23 | DataSeeder via `CreateAsyncScope()` (not IHostedService) | Runs once at startup, simpler than a full IHostedService for a one-off seed operation |
 | 2026-04-23 | EF Core query filters reference `tenantContext` field directly | Capturing `TenantId` as a local `Guid?` in `OnModelCreating` freezes the value at model-build time; the field reference is re-evaluated per query |
 | 2026-04-23 | Migrations output dir: `Persistence/Migrations` | Keeps migrations co-located with `AppDbContext` in the Infrastructure persistence folder |
+| 2026-04-23 | Bootstrap removed from Blazor WASM `index.html` | MudBlazor handles all styling; mixing Bootstrap + MudBlazor causes visual conflicts |
+| 2026-04-23 | MudBlazor 9.x requires `MudPopoverProvider` in layout | v9 split popover rendering into its own provider — omitting it breaks dropdowns and tooltips |
+| 2026-04-23 | Theme preference stored in localStorage under key `smartestate_dark_mode` | Persisted via Blazored.LocalStorage; defaults to light mode (`false`) if not set — `GetSystemPreference()` was removed in MudBlazor 9.x |
 
 ---
 
@@ -247,7 +250,7 @@ Owner reviews milestone → plans next sprint with Lead Dev
 | 0.1 | [#13](https://github.com/LazarVujosevic/SmartEstate/issues/13) | Docker Compose — PostgreSQL 16, pgAdmin, n8n | `backend` | ✅ Done |
 | 0.2 | [#14](https://github.com/LazarVujosevic/SmartEstate/issues/14) | EF Core initial migration + Administrator seed (from env vars) | `backend` | ✅ Done |
 | 0.3 | [#15](https://github.com/LazarVujosevic/SmartEstate/issues/15) | Serilog configuration — stdout + rolling file sink, both API and Workers | `backend` | ✅ Done |
-| 0.4 | [#16](https://github.com/LazarVujosevic/SmartEstate/issues/16) | Blazor WASM starter layout — MudBlazor theme, nav drawer, dark/light toggle | `frontend` | Open |
+| 0.4 | [#16](https://github.com/LazarVujosevic/SmartEstate/issues/16) | Blazor WASM starter layout — MudBlazor theme, nav drawer, dark/light toggle | `frontend` | PR #22 |
 | 0.5 | [#17](https://github.com/LazarVujosevic/SmartEstate/issues/17) | GitHub Actions CI — build + test on every PR, branch protection on main | `architecture` | ✅ Done |
 
 **Already completed before Sprint 0 issues were created:**
@@ -500,3 +503,6 @@ Owner reviews milestone → plans next sprint with Lead Dev
 - `Microsoft.EntityFrameworkCore.Design` must be in the **startup project** (API), not only in Infrastructure — EF Core CLI tools require it on the startup project to generate migrations
 - `dotnet-ef` global tool must be installed before running any migration commands: `dotnet tool install --global dotnet-ef`
 - Docker Compose credentials are in `.env` (gitignored) — copy `.env.example` to `.env` before first `docker compose up -d`
+- `wwwroot/appsettings.Development.json` is gitignored — only `wwwroot/appsettings.json` is tracked; configure local overrides manually after clone
+- MudBlazor 9.x: `MudThemeProvider.GetSystemPreference()` no longer exists — do not use it; read system preference via JS interop or default to a fixed value
+- MudBlazor 9.x: required providers in layout are `MudThemeProvider`, `MudPopoverProvider`, `MudDialogProvider`, `MudSnackbarProvider` — all four must be present
